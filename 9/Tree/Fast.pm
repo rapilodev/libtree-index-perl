@@ -5,129 +5,185 @@ use warnings;
 package Tree::Simple {
     use strict;
     use warnings;
-    use Data::Dumper;
+    use Carp qw(croak);
+
+    # The special constant for creating a true root node
     use constant ROOT => "root";
-    my %trees = ();
 
-    # decide if root or node
     sub new {
-        my ($class, $uid, $parent) = @_;
-        my $tree;
-        my $node;
-        if (($parent//'') eq Tree::Simple::ROOT) {
-            $tree = $trees{$uid} = Tree->new();
-        } else {
-            $tree = $trees{$uid};
+        my ($class, $value, $parent) = @_;
+        
+        my ($tree, $node);
+
+        if (defined $parent && $parent eq ROOT) {
+            # This is a brand new top-level tree context
+            $tree = Tree->new();
+            $node = $tree->root; 
+        } 
+        elsif (ref($parent) && $parent->isa('Tree::Simple')) {
+            # An internal constructor path: attaching to an existing tree context
+            $tree = $parent->_internal_tree;
+            # Create a brand new indexed slot under the parent's current node
+            $node = $parent->_internal_node->add_child();
+        } 
+        else {
+            # Default behavior if parent argument is omitted or invalid:
+            # CPAN Tree::Simple defaults to treating it as a root if unparented
+            $tree = Tree->new();
+            $node = $tree->root;
         }
-        my $self = bless {
-            tree => $tree,
-            node => $tree->root,
+
+        # Store the node's payload value
+        $node->value($value) if defined $value;
+
+        return bless {
+            _tree => $tree,
+            _node => $node,
         }, $class;
-        $self->{node}->uid($uid);
-        return $self;
     }
 
-    sub tree {$_[0]->{tree};}
-    sub node {$_[0]->{node};}
-
-    sub getRoot {
-        my ($self) = @_;
-        return $self->tree->root;
+    # Internal helper constructors used to wrap existing nodes
+    sub _new_from_components {
+        my ($class, $tree, $node) = @_;
+        return bless {
+            _tree => $tree,
+            _node => $node,
+        }, $class;
     }
+
+    # Private accessor hooks for our own adapter methods to use
+    sub _internal_tree { $_[0]->{_tree} }
+    sub _internal_node { $_[0]->{_node} }
+
+    # --- Tree::Simple API Implementations ---
 
     sub getUID {
         my ($self) = @_;
-        return $self->node->value;
+        return $self->{_node}->uid;
     }
 
     sub setUID {
-        my ($self, $v) = @_;
-        return $self->node->value($v);
+        my ($self, $uid) = @_;
+        $self->{_node}->uid($uid);
+        return $self;
     }
 
-    sub addChild {
+    sub getNodeValue {
+        my ($self) = @_;
+        return $self->{_node}->value;
+    }
+
+    sub setNodeValue {
         my ($self, $value) = @_;
-        my $child = $self->node->addChild(-1);
-        $child->value($value);
-        return $child;
-    }
-
-    sub insertChildAt {
-        my ($self, $pos, $value) = @_;
-        my $node = $self->node->insert_at($pos);
-        $node->value($value);
-        return $node;
-    }
-
-    sub getChildren {
-        my ($self) = @_;
-        return $self->node->children();
-    }
-
-    sub traverse {
-        my ($self, $cb) = @_;
-        $self->tree->traverse(
-            sub {
-                my ($node) = @_;
-                $cb->($node);
-            }
-        );
-    }
-
-    sub getParent {
-        my ($self) = @_;
-        return $self->node->parent;
-    }
-
-    sub getChildAt {
-        my ($self, $i) = @_;
-        my @children = $self->node->children();
-        return $children[$i];
-    }
-
-    sub getDepth {
-        my ($self) = @_;
-        return $self->{node}->depth();
-    }
-
-    sub getNextSibling {
-        my ($self) = @_;
-        return $self->{node}->next_sibling;
-    }
-
-    sub getPreviousSibling {
-        my ($self) = @_;
-        return $self->{node}->next_sibling;
-    }
-
-    sub getFirstChild {
-        my ($self) = @_;
-        return $self->{node}->next_sibling;
-    }
-
-    sub getLastChild {
-        my ($self) = @_;
-        return $self->{node}->next_sibling;
-    }
-
-    sub getChildCount {
-        my ($self) = @_;
-        return scalar($self->node->children);
+        $self->{_node}->value($value);
+        return $self;
     }
 
     sub isRoot {
         my ($self) = @_;
-        return $self->node->is_root;
+        return $self->{_node}->is_root;
     }
 
     sub isLeaf {
         my ($self) = @_;
-        return $self->node->is_child;
+        return $self->{_node}->is_leaf;
+    }
+
+    sub getDepth {
+        my ($self) = @_;
+        return $self->{_node}->depth;
+    }
+
+    sub getParent {
+        my ($self) = @_;
+        my $p_node = $self->{_node}->parent;
+        return undef unless defined $p_node;
+        return $self->_new_from_components($self->{_tree}, $p_node);
+    }
+
+    sub addChild {
+        my ($self, $child) = @_;
+        croak "Child must be a Tree::Simple object" unless ref($child) && $child->isa(__PACKAGE__);
+        
+        # In Tree::Simple, you can add an existing tree structure as a child.
+        # We grab the value, append a new child slot here, and copy attributes.
+        my $new_node = $self->{_node}->add_child();
+        $new_node->value($child->getNodeValue());
+        $new_node->uid($child->getUID());
+        
+        # If the incoming child had children of its own, recursively add them:
+        for my $grandchild ($child->getChildren) {
+            $self->_new_from_components($self->{_tree}, $new_node)->addChild($grandchild);
+        }
+        
+        return $self;
+    }
+
+    sub getChildCount {
+        my ($self) = @_;
+        return scalar($self->{_node}->children);
+    }
+
+    sub getChildren {
+        my ($self) = @_;
+        return map { $self->_new_from_components($self->{_tree}, $_) } $self->{_node}->children;
+    }
+
+    sub getChildAt {
+        my ($self, $index) = @_;
+        my @children = $self->{_node}->children;
+        return undef if $index < 0 || $index >= @children;
+        return $self->_new_from_components($self->{_tree}, $children[$index]);
+    }
+
+    sub getFirstChild {
+        my ($self) = @_;
+        my @children = $self->{_node}->children;
+        return undef unless @children;
+        return $self->_new_from_components($self->{_tree}, $children[0]);
+    }
+
+    sub getLastChild {
+        my ($self) = @_;
+        my @children = $self->{_node}->children;
+        return undef unless @children;
+        return $self->_new_from_components($self->{_tree}, $children[-1]);
+    }
+
+    sub getNextSibling {
+        my ($self) = @_;
+        my $sib = $self->{_node}->next_sibling;
+        return undef unless defined $sib;
+        return $self->_new_from_components($self->{_tree}, $sib);
+    }
+
+    sub getPreviousSibling {
+        my ($self) = @_;
+        my $sib = $self->{_node}->prev_sibling;
+        return undef unless defined $sib;
+        return $self->_new_from_components($self->{_tree}, $sib);
+    }
+
+    sub traverse {
+        my ($self, $cb) = @_;
+        croak "Callback must be a CODE reference" unless ref $cb eq 'CODE';
+        
+        # We start traversal from this specific subtree's node context
+        my @stack = ($self->{_node});
+        while (@stack) {
+            my $node = pop @stack;
+            
+            # Wrap the bare Flyweight node into a Tree::Simple adapter for the callback
+            my $wrapped = $self->_new_from_components($self->{_tree}, $node);
+            $cb->($wrapped);
+            
+            # Tree::Simple typically processes pre-order depth-first; push children reversed
+            push @stack, reverse $node->children;
+        }
     }
 
     1;
 }
-
 # flyweight nodes
 package Tree::Node {
     use strict;

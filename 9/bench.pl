@@ -155,3 +155,6 @@ $tree->traverse(
 my $t1 = time();
 
 printf "Traversal: %.3f seconds (%d nodes)\n", $t1 - $t0, $visited;
+
+undef $tree;
+print "Final Memory Usage: ", get_memory_usage(), "\n";
