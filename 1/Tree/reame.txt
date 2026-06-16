@@ -1,0 +1,5 @@
+eine Klasse: Tree::Fast
+jeder Knoten ist nur eine ID
+alle Daten und Beziehungen sind global gespeichert
+Eltern/Kinder werden über IDs verknüpft
+alle Methoden arbeiten nur über diese ID-Zugriffe

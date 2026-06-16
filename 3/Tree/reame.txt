@@ -1,0 +1,2 @@
+node hält attribute
+baum speichert knoten
