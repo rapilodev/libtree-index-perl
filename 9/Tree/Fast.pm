@@ -6,19 +6,18 @@ package Tree::Simple {
     use strict;
     use warnings;
     use Data::Dumper;
-
+    use constant ROOT => "root";
     my %trees = ();
 
+    # decide if root or node
     sub new {
-        my ($class, $uid) = @_;
+        my ($class, $uid, $parent) = @_;
         my $tree;
         my $node;
-        # uid == root => init  else create node
-        if (exists $trees{$uid}) {
-            $tree = $trees{$uid};
-            # uid == root => init.
-        } else {
+        if (($parent//'') eq Tree::Simple::ROOT) {
             $tree = $trees{$uid} = Tree->new();
+        } else {
+            $tree = $trees{$uid};
         }
         my $self = bless {
             tree => $tree,
@@ -30,10 +29,6 @@ package Tree::Simple {
 
     sub tree {$_[0]->{tree};}
     sub node {$_[0]->{node};}
-    sub ROOT {
-        my ($self) = @_;
-        return $self->tree->getRoot;
-    }
 
     sub getRoot {
         my ($self) = @_;
@@ -144,6 +139,7 @@ package Tree::Node {
     }
     sub tree         {$_[0]->[0]}
     sub id           {$_[0]->[1]}
+    sub uid          {$_[0]->tree->uid(@_)}
     sub value        {$_[0]->tree->value(@_)}
     sub root         {$_[0]->tree->root(@_)}
     sub parent       {$_[0]->tree->parent(@_)}
@@ -174,101 +170,87 @@ package Tree {
         return $self;
     }
 
-    sub tree {$_[0]->{tree}}
-
-    sub root {
-        my ($self) = @_;
-        return Tree::Node->new($self, 0);
+    sub _node_id {
+        my ($node) = @_;
+        die "node must be Tree::Node"
+            unless blessed($node) && $node->isa("Tree::Node");
+        return $node->id;
     }
+
+    sub tree {$_[0]->{tree}}
+    sub root {Tree::Node->new($_[0], 0)}
 
     sub value {
         my ($self, $node, @args) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        return $self->tree->value($node->id, @args);
+        return $self->tree->value(_node_id($node), @args);
+    }
+
+    sub uid {
+        my ($self, $node, @args) = @_;
+        return $self->tree->uid(_node_id($node), @args);
     }
 
     sub is_root {
         my ($self, $node) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        return $self->tree->is_root($node->id);
+        return $self->tree->is_root(_node_id($node));
     }
 
     sub is_leaf {
         my ($self, $node) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        return $self->tree->is_leaf($node->id);
+        return $self->tree->is_leaf(_node_id($node));
     }
 
     sub depth {
         my ($self, $node) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        return $self->tree->depth($node->id);
+        return $self->tree->depth(_node_id($node));
     }
 
     sub parent {
         my ($self, $node, @args) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        my $pid = $self->tree->parent($node->id, @args);
+        my $pid = $self->tree->parent(_node_id($node), @args);
         return undef unless defined $pid;
         return Tree::Node->new($self, $pid);
     }
 
     sub next_sibling {
         my ($self, $node, @args) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        my $id = $self->tree->next_sibling($node->id, @args);
+        my $id = $self->tree->next_sibling(_node_id($node), @args);
         return undef unless defined $id;
         return Tree::Node->new($self, $id);
     }
 
     sub prev_sibling {
         my ($self, $node, @args) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        my $id = $self->tree->prev_sibling($node->id, @args);
+        my $id = $self->tree->prev_sibling(_node_id($node), @args);
         return undef unless defined $id;
         return Tree::Node->new($self, $id);
     }
 
     sub children {
         my ($self, $node) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
         return
-          map {Tree::Node->new($self, $_)} $self->tree->children($node->id);
+          map {Tree::Node->new($self, $_)} $self->tree->children(_node_id($node));
     }
 
     sub add_child {
         my ($self, $node) = @_;
-        die "node must be Tree::Node"
-          unless (blessed($node) && $node->isa("Tree::Node"));
-        my $id = $self->tree->add_child($node->id);
+        my $id = $self->tree->add_child(_node_id($node));
         $node = Tree::Node->new($self, $id);
         return $node;
     }
 
     sub insert_at {
         my ($self, $node, $pos) = @_;
-        die "node must be Tree::Node"
-          unless blessed($node) && $node->isa("Tree::Node");
-        my $id = $self->tree->add_child($node->id, $pos);
+        my $id = $self->tree->add_child(_node_id($node), $pos);
         return Tree::Node->new($self, $id);
     }
 
     sub traverse {
         my ($self, $cb) = @_;
-        $self->tree->traverse(
-            sub {
-                my ($id) = @_;
-                $cb->(Tree::Node->new($self, $id));
-            }
-        );
+        $self->tree->traverse(sub {
+            my ($id) = @_;
+            $cb->(Tree::Node->new($self, $id));
+        });
     }
     1;
 }
@@ -285,6 +267,7 @@ package Tree::Indexed {
         my ($class) = @_;
         my $self = bless {
             next_index   => 1,
+            uid          => [undef],
             value        => [undef],
             parent       => [undef],
             first_child  => [undef],
@@ -314,6 +297,14 @@ package Tree::Indexed {
         return @_ == 3
           ? ($self->{parent}[$idx] = $v)
           : $self->{parent}[$idx];
+    }
+    sub uid {
+        my ($self, $idx, $v) = @_;
+        #warn "parent <$idx>, <$v>";
+        die "invalid idx" unless defined $idx && $idx >= 0;
+        return @_ == 3
+          ? ($self->{uid}[$idx] = $v)
+          : $self->{uid}[$idx];
     }
 
     sub first_child {

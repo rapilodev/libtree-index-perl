@@ -48,7 +48,7 @@ print "Baseline Memory: ", get_memory_usage(), "\n";
 
 my $start_time = time();
 
-my $tree = Tree->new("root_node");
+my $tree = Tree->new("root_node", Tree::Simple->ROOT);
 
 my $root = $tree->root;
 
@@ -56,7 +56,7 @@ my @levels;
 
 push @{$levels[0]}, $root;
 
-my $target_nodes  = 100_000;
+my $target_nodes  = 50000;
 my $target_levels = 10;
 my $nodes_created = 1;
 
