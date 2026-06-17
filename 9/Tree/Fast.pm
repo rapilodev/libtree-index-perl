@@ -52,6 +52,7 @@ sub _new_treenode {
 
         return bless { _tree => $tree, _node => $node }, ref($class) || $class;
     }
+    
     sub new {
         my ($class, $value, $parent) = @_;
         my ($tree, $node);
@@ -206,19 +207,18 @@ sub _new_treenode {
 
     sub getChildren { shift->getAllChildren(@_) }
 
-    sub removeChildAt {
+sub removeChildAt {
         my ($self, $index) = @_;
         my @children = $self->{_node}->children;
         return undef if $index < 0 || $index >= @children;
         my $target_node = $children[$index];
         
-        my $detached_proxy = $self->_new_treenode($self, $self->{_tree}, $target_node);
-        my $isolated_clone = $detached_proxy->clone();
-        
+        # Unlink the node from the parent in the backend, but DO NOT clone it.
         $self->{_tree}->_remove_node_from_parent($target_node);
-        return $isolated_clone;
+        
+        return $self->_new_treenode($self, $self->{_tree}, $target_node);
     }
-
+    
     sub removeChild {
         my ($self, $child_or_idx) = @_;
         return undef unless defined $child_or_idx;
@@ -314,12 +314,6 @@ sub _new_treenode {
     }
 
     sub DESTROY {
-        my ($self) = @_;
-        if (ref($self) && ref($self) eq __PACKAGE__ && $self->{_node} && $self->isRoot) {
-            if ($self->{_tree} && $self->{_tree}->can('_purge_tree')) {
-                $self->{_tree}->_purge_tree();
-            }
-        }
     }
 
     sub getNextSibling {
@@ -514,8 +508,15 @@ package Tree::Indexed {
     sub prev_sibling { @_ == 3 ? ($_[0]->{prev_sibling}[$_[1]] = $_[2]) : $_[0]->{prev_sibling}[$_[1]] }
     sub next_sibling { @_ == 3 ? ($_[0]->{next_sibling}[$_[1]] = $_[2]) : $_[0]->{next_sibling}[$_[1]] }
 
-    sub is_root { defined($_[1]) && $_[1] == ROOT }
-    sub is_leaf { !defined $_[0]->{first_child}[$_[1]] }
+sub is_root { 
+        my ($self, $idx) = @_;
+        return 0 unless defined $idx;
+        return 1 if $idx == ROOT;
+        # A node is functionally a root if it has no parent (detached)
+        return 1 unless defined $self->{parent}[$idx];
+        return 0;
+    }
+        sub is_leaf { !defined $_[0]->{first_child}[$_[1]] }
 
     sub depth {
         my ($self, $idx) = @_;
