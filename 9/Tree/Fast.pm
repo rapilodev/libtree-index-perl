@@ -8,25 +8,57 @@ package Tree::Simple {
     use strict;
     use warnings;
     use Carp qw(croak);
+    use Scalar::Util qw(blessed);
+use Scalar::Util qw(blessed refaddr); # <--- Make sure refaddr is imported!
 
-    use constant ROOT => "root";
-    sub _internal_tree {$_[0]->{_tree}}
-    sub _internal_node {$_[0]->{_node}}
+    # Bulletproof overloading completely isolated from implicit fallback loops
+    use overload 
+        '""'  => sub { 
+            (blessed($_[0]) && $_[0]->isa('Tree::Simple') && $_[0]->{_node}) 
+                ? "Tree::Simple=ID(" . $_[0]->{_node}->id . ")" 
+                : overload::StrVal($_[0]) 
+        },
+        '=='  => sub { _compare_nodes(@_) },
+        'eq'  => sub { _compare_nodes(@_) },
+        fallback => 1;
 
-    sub _new_treenode {
-        my ($class, $tree, $node) = @_;
-        my $pkg = ref($class) || $class;
-        return bless {
-            _tree => $tree,
-            _node => $node,
-        }, $pkg;
+    sub _compare_nodes {
+        my ($a, $b, $swap) = @_;
+        
+        # 1. Safely check that both variables are valid Tree::Simple wrappers
+        return 0 unless blessed($a) && $a->isa('Tree::Simple') && $a->{_node};
+        return 0 unless blessed($b) && $b->isa('Tree::Simple') && $b->{_node};
+        
+        # 2. Extract underlying raw component addresses
+        my $addr_a_tree = refaddr($a->{_tree});
+        my $addr_b_tree = refaddr($b->{_tree});
+        
+        # 3. Use pure numeric scalar comparison on memory addresses!
+        # This completely bypasses any internal object overload mechanisms.
+        return ( $addr_a_tree == $addr_b_tree 
+              && $a->{_node}->id == $b->{_node}->id );
     }
+    
+    use constant ROOT => "root";
+    sub _internal_tree { $_[0]->{_tree} }
+    sub _internal_node { $_[0]->{_node} }
 
+sub _new_treenode {
+        # Auto-detect if called as $self->_new_treenode($self, $tree, $node) [4 elements]
+        # or as a direct function _new_treenode($class, $tree, $node) [3 elements]
+        my ($class, $tree, $node) = @_ == 4 
+            ? ($_[0], $_[2], $_[3]) 
+            : ($_[0], $_[1], $_[2]);
+
+        return bless { _tree => $tree, _node => $node }, ref($class) || $class;
+    }
     sub new {
         my ($class, $value, $parent) = @_;
-        $parent //= ROOT;
         my ($tree, $node);
-        if (defined $parent && $parent eq ROOT) {
+        if (!defined $parent) {
+            $tree = Tree->new();
+            $node = $tree->root;
+        } elsif (defined $parent && $parent eq ROOT) {
             $tree = Tree->new();
             $node = $tree->root;
         } elsif (ref($parent) && $parent->isa('Tree::Simple')) {
@@ -39,15 +71,22 @@ package Tree::Simple {
         return _new_treenode($class, $tree, $node);
     }
 
-    sub getUID        {scalar($_[0]->{_node}->uid)}
-    sub getChildCount {scalar($_[0]->{_node}->children)}
-    sub getNodeValue  {scalar($_[0]->{_node}->value)}
-    sub isRoot        {$_[0]->{_node}->is_root}
-    sub isLeaf        {$_[0]->{_node}->is_leaf}
-    sub getDepth      {$_[0]->{_node}->is_root ? -1 : $_[0]->{_node}->depth}
+    sub getUID        { my $uid = $_[0]->{_node}->uid; return defined($uid) ? scalar($uid) : "$_[0]" }
+    sub getChildCount { scalar($_[0]->{_node}->children) }
+    sub getNodeValue  { scalar($_[0]->{_node}->value) }
+    sub isRoot        { $_[0]->{_node}->is_root }
+    sub isLeaf        { $_[0]->{_node}->is_leaf }
+    
+    # Tree::Simple treats its own root as depth -1, and immediate children as depth 0
+    sub getDepth {
+        my ($self) = @_;
+        return -1 if $self->{_node}->is_root;
+        return $self->{_node}->depth - 1;
+    }
 
-    # Alias to catch benchmark scripts calling ->depth() instead of ->getDepth()
     sub depth         { shift->getDepth(@_) }
+    sub height        { shift->getHeight(@_) }
+    sub width         { shift->getWidth(@_) }
 
     sub getSiblingCount {
         $_[0]->{_node}->is_root ? 0 : scalar($_[0]->{_node}->parent->children);
@@ -63,14 +102,14 @@ package Tree::Simple {
 
     sub setUID {
         my ($self, $uid) = @_;
-        ($uid) || die "Insufficient Arguments : Custom Unique ID's must be a true value";
+        die "Insufficient Arguments : Custom Unique ID's must be a true value" unless $uid;
         $self->{_node}->uid($uid);
         return $self;
     }
 
     sub setNodeValue {
         my ($self, $value) = @_;
-        (defined($value)) || die "Insufficient Arguments : must supply a value for node";
+        die "Insufficient Arguments : must supply a value for node" unless defined($value);
         $self->{_node}->value($value);
         return $self;
     }
@@ -89,26 +128,33 @@ package Tree::Simple {
 
     sub addChild {
         my ($self, $child) = @_;
-        croak "Child must be a Tree::Simple object"
-          unless ref($child) && $child->isa(__PACKAGE__);
+        croak "Child must be a Tree::Simple object" unless ref($child) && $child->isa(__PACKAGE__);
 
         my $new_node = $self->{_node}->add_child();
         $new_node->value($child->getNodeValue());
-        $new_node->uid($child->getUID());
+        
+        my $uid = $child->{_node}->uid;
+        $new_node->uid($uid) if defined $uid;
 
-        for my $grandchild ($child->getChildren) {
-            $self->_new_treenode($self, $self->{_tree}, $new_node)->addChild($grandchild);
+        my $wrapped_new = $self->_new_treenode($self, $self->{_tree}, $new_node);
+        for my $grandchild ($child->getAllChildren) {
+            $wrapped_new->addChild($grandchild);
         }
+
+        # Update the live external instance tracker seamlessly
+        $child->{_tree} = $self->{_tree};
+        $child->{_node} = $new_node;
+
         return $self;
     }
 
     sub getIndex {
-        my ($self, $node) = @_;
+        my ($self) = @_;
         my $parent = $self->{_node}->parent;
-        return -1 if !$parent || $parent && $parent->is_root;
+        return -1 if !$parent;
         my $index = 0;
-        for my $child ($parent->getAllChildren) {
-            ("$child" eq "$self") && return $index;
+        for my $child ($parent->children) {
+            return $index if $child->id == $self->{_node}->id;
             $index++;
         }
         return -1;
@@ -116,9 +162,8 @@ package Tree::Simple {
 
     sub addChildren {
         my ($self, @children) = @_;
-        for my $child (@children) {
-            $self->addChild($child);
-        }
+        for my $child (@children) { $self->addChild($child) }
+        return $self;
     }
 
     sub insertChild {
@@ -128,11 +173,18 @@ package Tree::Simple {
         
         my $new_node = $self->{_node}->insert_at($pos);
         $new_node->value($child->getNodeValue());
-        $new_node->uid($child->getUID());
         
-        for my $grandchild ($child->getChildren) {
-            $self->_new_treenode($self, $self->{_tree}, $new_node)->addChild($grandchild);
+        my $uid = $child->{_node}->uid;
+        $new_node->uid($uid) if defined $uid;
+        
+        my $wrapped_new = $self->_new_treenode($self, $self->{_tree}, $new_node);
+        for my $grandchild ($child->getAllChildren) {
+            $wrapped_new->addChild($grandchild);
         }
+
+        $child->{_tree} = $self->{_tree};
+        $child->{_node} = $new_node;
+
         return $self;
     }
 
@@ -143,11 +195,12 @@ package Tree::Simple {
         for my $child (@children) {
             $self->insertChild($pos + $i++, $child);
         }
+        return $self;
     }
 
     sub getAllChildren {
         my ($self) = @_;
-        my @children = map {$self->_new_treenode($self, $self->{_tree}, $_)} $self->{_node}->children;
+        my @children = map { $self->_new_treenode($self, $self->{_tree}, $_) } $self->{_node}->children;
         return wantarray ? @children : \@children;
     }
 
@@ -158,8 +211,12 @@ package Tree::Simple {
         my @children = $self->{_node}->children;
         return undef if $index < 0 || $index >= @children;
         my $target_node = $children[$index];
+        
+        my $detached_proxy = $self->_new_treenode($self, $self->{_tree}, $target_node);
+        my $isolated_clone = $detached_proxy->clone();
+        
         $self->{_tree}->_remove_node_from_parent($target_node);
-        return $self->_new_treenode($self, $self->{_tree}, $target_node);
+        return $isolated_clone;
     }
 
     sub removeChild {
@@ -168,7 +225,7 @@ package Tree::Simple {
         if (ref($child_or_idx) && $child_or_idx->isa(__PACKAGE__)) {
             my $idx = 0;
             for my $child ($self->getAllChildren) {
-                if ($child->getUID eq $child_or_idx->getUID) {
+                if ($child->{_node}->id == $child_or_idx->{_node}->id) {
                     return $self->removeChildAt($idx);
                 }
                 $idx++;
@@ -179,46 +236,37 @@ package Tree::Simple {
         }
     }
 
-    sub getChildAt {
-        my ($self, $index) = @_;
-        my @children = $self->{_node}->children;
-        return undef if $index < 0 || $index >= @children;
-        return $self->_new_treenode($self, $self->{_tree}, $children[$index]);
-    }
-
-    sub getFirstChild {
-        my ($self) = @_;
-        my @children = $self->{_node}->children;
-        return undef unless @children;
-        return $self->_new_treenode($self, $self->{_tree}, $children[0]);
-    }
-
-    sub getLastChild {
-        my ($self) = @_;
-        my @children = $self->{_node}->children;
-        return undef unless @children;
-        return $self->_new_treenode($self, $self->{_tree}, $children[-1]);
-    }
+    sub getChildAt { shift->getChild(@_) }
+    sub getFirstChild { $_[0]->getChild(0) }
+    sub getLastChild  { $_[0]->getChild($_[0]->getChildCount - 1) }
 
     sub addSibling {
         my ($self, @args) = @_;
         die "Insufficient Arguments : cannot add a sibling to a ROOT tree" if $self->isRoot();
         $self->getParent->addChild(@args);
+        return $self;
     }
 
     sub addSiblings {
         my ($self, @args) = @_;
         die "Insufficient Arguments : cannot add siblings to a ROOT tree" if $self->isRoot();
         $self->getParent->addChildren(@args);
+        return $self;
     }
 
     sub insertSiblings {
-        my ($self, @args) = @_;
+        my ($self, $pos, @args) = @_;
         die "Insufficient Arguments : cannot insert sibling(s) to a ROOT tree" if $self->isRoot();
-        $self->getParent->insertChildren(@args);
+        $self->getParent->insertChildren($pos, @args);
+        return $self;
     }
 
-    sub insertSibling { insertSiblings(@_) }
+    sub insertSibling {
+        my ($self, $pos, $sibling) = @_;
+        die "Insufficient Arguments : cannot insert sibling(s) to a ROOT tree" if $self->isRoot();
+        $self->getParent->insertChild($pos, $sibling);
+        return $self;
+    }
 
     sub getSibling {
         my ($self, $index) = @_;
@@ -229,13 +277,15 @@ package Tree::Simple {
     sub getAllSiblings {
         my ($self) = @_;
         die "Insufficient Arguments : cannot get siblings from a ROOT tree" if $self->isRoot();
-        return $self->getParent()->getAllChildren();
+        my @siblings = $self->getParent()->getAllChildren();
+        return wantarray ? @siblings : \@siblings;
     }
 
     sub clone {
         my ($self) = @_;
         my $cloned_tree = __PACKAGE__->new($self->getNodeValue);
-        $cloned_tree->setUID($self->getUID);
+        my $uid = $self->{_node}->uid;
+        $cloned_tree->setUID($uid) if defined $uid;
         for my $child ($self->getAllChildren) {
             $cloned_tree->addChild($child->clone);
         }
@@ -245,29 +295,27 @@ package Tree::Simple {
     sub cloneShallow {
         my ($self) = @_;
         my $clone = __PACKAGE__->new($self->getNodeValue);
-        $clone->setUID($self->getUID);
+        my $uid = $self->{_node}->uid;
+        $clone->setUID($uid) if defined $uid;
         return $clone;
     }
 
     sub size {
         my ($self) = @_;
         my $total = 1;
-        for my $child ($self->getAllChildren) {
-            $total += $child->size;
-        }
+        for my $child ($self->getAllChildren) { $total += $child->size }
         return $total;
     }
 
     sub accept {
         my ($self, $visitor) = @_;
-        die "Insufficient Arguments : visitor must be a valid object"
-          unless ref($visitor) && $visitor->can('visit');
+        die "Insufficient Arguments : visitor must be a valid object" unless ref($visitor) && $visitor->can('visit');
         $visitor->visit($self);
     }
 
     sub DESTROY {
         my ($self) = @_;
-        if ($self->{_node} && ref($self->{_node}) && $self->{_node}->can('is_root') && $self->isRoot) {
+        if (ref($self) && ref($self) eq __PACKAGE__ && $self->{_node} && $self->isRoot) {
             if ($self->{_tree} && $self->{_tree}->can('_purge_tree')) {
                 $self->{_tree}->_purge_tree();
             }
@@ -289,15 +337,30 @@ package Tree::Simple {
     }
 
     sub traverse {
-        my ($self, $cb) = @_;
-        croak "Callback must be a CODE reference" unless ref $cb eq 'CODE';
-        my @stack = ($self->{_node});
-        while (@stack) {
-            my $node    = pop @stack;
-            my $wrapped = $self->_new_treenode($self, $self->{_tree}, $node);
-            $cb->($wrapped);
-            push @stack, reverse $node->children;
+        my ($self, $pre_cb, $post_cb) = @_;
+        croak "Callback must be a CODE reference" unless ref $pre_cb eq 'CODE';
+        $self->_traverse_recursive($self->{_node}, $pre_cb, $post_cb);
+    }
+
+    sub _traverse_recursive {
+        my ($self, $node, $pre_cb, $post_cb) = @_;
+        my $wrapped = $self->_new_treenode($self, $self->{_tree}, $node);
+        
+        if ($pre_cb) {
+            my $res = $pre_cb->($wrapped);
+            return 'ABORT' if defined($res) && $res eq 'ABORT';
         }
+        
+        for my $child ($node->children) {
+            my $res = $self->_traverse_recursive($child, $pre_cb, $post_cb);
+            return 'ABORT' if $res && $res eq 'ABORT';
+        }
+        
+        if ($post_cb) {
+            my $res = $post_cb->($wrapped);
+            return 'ABORT' if defined($res) && $res eq 'ABORT';
+        }
+        return '';
     }
 
     sub getHeight {
@@ -315,9 +378,7 @@ package Tree::Simple {
         my ($self) = @_;
         return 1 if $self->isLeaf;
         my $total_width = 0;
-        for my $child ($self->getAllChildren) {
-            $total_width += $child->getWidth;
-        }
+        for my $child ($self->getAllChildren) { $total_width += $child->getWidth }
         return $total_width;
     }
 
@@ -330,28 +391,27 @@ package Tree::Simple {
 package Tree::Node {
     use strict;
     use warnings;
+    use Scalar::Util qw(blessed);
 
-    sub new {
-        my ($class, $tree, $id) = @_;
-        return bless [$tree, $id], $class;
-    }
-    sub tree         {$_[0]->[0]}
-    sub id           {$_[0]->[1]}
-    sub uid          { my $t = $_[0]->tree; return unless $t; $t->uid($_[0]->id, @_[1..$#_]) }
-    sub value        { my $t = $_[0]->tree; return unless $t; $t->value($_[0]->id, @_[1..$#_]) }
-    sub root         { my $t = $_[0]->tree; return unless $t; $t->root($_[0]->id, @_[1..$#_]) }
-    sub parent       { my $t = $_[0]->tree; return unless $t; $t->parent($_[0]->id, @_[1..$#_]) }
-    sub children     { my $t = $_[0]->tree; return $t ? $t->children($_[0]->id, @_[1..$#_]) : () }
-    sub add_child    { my $t = $_[0]->tree; return unless $t; $t->add_child($_[0]->id, @_[1..$#_]) }
-    sub insert_at    { my $t = $_[0]->tree; return unless $t; $t->insert_at($_[0]->id, @_[1..$#_]) }
-    sub depth        { my $t = $_[0]->tree; return $t ? $t->depth($_[0]->id, @_[1..$#_]) : 0 }
-    sub first_child  { my $t = $_[0]->tree; return unless $t; $t->first_child($_[0]->id, @_[1..$#_]) }
-    sub last_child   { my $t = $_[0]->tree; return unless $t; $t->last_child($_[0]->id, @_[1..$#_]) }
+    use overload 
+        '""'     => sub { overload::StrVal($_[0]) },
+        '=='     => sub { blessed($_[0]) && blessed($_[1]) && overload::StrVal($_[0]) eq overload::StrVal($_[1]) },
+        fallback => 1;
+
+    sub new  { bless [$_[1], $_[2]], $_[0] }
+    sub tree { $_[0]->[0] }
+    sub id   { $_[0]->[1] }
+    sub uid  { my $t = $_[0]->tree; return unless $t; $t->uid($_[0]->id, @_[1..$#_]) }
+    sub value { my $t = $_[0]->tree; return unless $t; $t->value($_[0]->id, @_[1..$#_]) }
+    sub parent { my $t = $_[0]->tree; return unless $t; $t->parent($_[0]->id, @_[1..$#_]) }
+    sub children { my $t = $_[0]->tree; return $t ? $t->children($_[0]->id, @_[1..$#_]) : () }
+    sub add_child { my $t = $_[0]->tree; return unless $t; $t->add_child($_[0]->id, @_[1..$#_]) }
+    sub insert_at { my $t = $_[0]->tree; return unless $t; $t->insert_at($_[0]->id, @_[1..$#_]) }
+    sub depth { my $t = $_[0]->tree; return $t ? $t->depth($_[0]->id, @_[1..$#_]) : 0 }
     sub prev_sibling { my $t = $_[0]->tree; return unless $t; $t->prev_sibling($_[0]->id, @_[1..$#_]) }
     sub next_sibling { my $t = $_[0]->tree; return unless $t; $t->next_sibling($_[0]->id, @_[1..$#_]) }
-    sub is_leaf      { my $t = $_[0]->tree; return $t ? $t->is_leaf($_[0]->id, @_[1..$#_]) : 1 }
-    sub is_root      { my $t = $_[0]->tree; return $t ? $t->is_root($_[0]->id, @_[1..$#_]) : 0 }
-    sub traverse     { my $t = $_[0]->tree; return unless $t; $t->traverse(@_[1..$#_]) }
+    sub is_leaf { my $t = $_[0]->tree; return $t ? $t->is_leaf($_[0]->id, @_[1..$#_]) : 1 }
+    sub is_root { my $t = $_[0]->tree; return $t ? $t->is_root($_[0]->id, @_[1..$#_]) : 0 }
     1;
 };
 
@@ -363,117 +423,53 @@ package Tree {
     use warnings;
     use Scalar::Util qw(blessed);
 
-    sub new {
-        my ($class) = @_;
-        return bless {tree => Tree::Indexed->new()}, $class;
-    }
+    use overload 
+        '""'     => sub { overload::StrVal($_[0]) },
+        '=='     => sub { blessed($_[0]) && blessed($_[1]) && overload::StrVal($_[0]) eq overload::StrVal($_[1]) },
+        fallback => 1;
 
-    sub _purge_tree {
-        my ($self) = @_;
-        if ($self->{tree} && $self->{tree}->can('_garbage_collect')) {
-            $self->{tree}->_garbage_collect();
-        }
-    }
+    sub new { bless {tree => Tree::Indexed->new()}, $_[0] }
+    sub _purge_tree { $_[0]->{tree}->_garbage_collect() if $_[0]->{tree} }
 
     sub _node_id {
         my ($node) = @_;
         return undef unless defined $node;
-        # Fail gracefully during global destruction cleanup
         return $node unless ref($node);
-        die "node must be Tree::Node" unless blessed($node) && $node->isa("Tree::Node");
         return $node->id;
     }
 
-    sub tree {$_[0]->{tree}}
-    sub root {Tree::Node->new($_[0], 0)}
+    sub tree { $_[0]->{tree} }
+    sub root { Tree::Node->new($_[0], 0) }
 
-    sub value {
-        my ($self, $node, @args) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        return $self->tree->value($id, @args);
-    }
-
-    sub uid {
-        my ($self, $node, @args) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        return $self->tree->uid($id, @args);
-    }
-
-    sub is_root {
-        my ($self, $node) = @_;
-        my $id = _node_id($node); return 0 unless defined $id;
-        return $self->tree->is_root($id);
-    }
-
-    sub is_leaf {
-        my ($self, $node) = @_;
-        my $id = _node_id($node); return 1 unless defined $id;
-        return $self->tree->is_leaf($id);
-    }
-
-    sub depth {
-        my ($self, $node) = @_;
-        my $id = _node_id($node); return 0 unless defined $id;
-        return $self->tree->depth($id);
-    }
+    sub value { $_[0]->tree->value(_node_id($_[1]), @_[2..$#_]) }
+    sub uid   { $_[0]->tree->uid(_node_id($_[1]), @_[2..$#_]) }
+    sub is_root { $_[0]->tree->is_root(_node_id($_[1])) }
+    sub is_leaf { $_[0]->tree->is_leaf(_node_id($_[1])) }
+    sub depth   { $_[0]->tree->depth(_node_id($_[1])) }
 
     sub parent {
-        my ($self, $node, @args) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        my $pid = $self->tree->parent($id, @args);
-        return undef unless defined $pid;
-        return Tree::Node->new($self, $pid);
+        my $pid = $_[0]->tree->parent(_node_id($_[1]), @_[2..$#_]);
+        return defined $pid ? Tree::Node->new($_[0], $pid) : undef;
     }
 
     sub next_sibling {
-        my ($self, $node, @args) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        my $sid = $self->tree->next_sibling($id, @args);
-        return undef unless defined $sid;
-        return Tree::Node->new($self, $sid);
+        my $sid = $_[0]->tree->next_sibling(_node_id($_[1]), @_[2..$#_]);
+        return defined $sid ? Tree::Node->new($_[0], $sid) : undef;
     }
 
     sub prev_sibling {
-        my ($self, $node, @args) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        my $sid = $self->tree->prev_sibling($id, @args);
-        return undef unless defined $sid;
-        return Tree::Node->new($self, $sid);
+        my $sid = $_[0]->tree->prev_sibling(_node_id($_[1]), @_[2..$#_]);
+        return defined $sid ? Tree::Node->new($_[0], $sid) : undef;
     }
 
     sub children {
-        my ($self, $node) = @_;
-        my $id = _node_id($node); return () unless defined $id;
-        return map {Tree::Node->new($self, $_)} $self->tree->children($id);
+        my $self = shift;
+        return map { Tree::Node->new($self, $_) } $self->tree->children(_node_id($_[0]));
     }
 
-    sub add_child {
-        my ($self, $node) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        my $cid = $self->tree->add_child($id);
-        return Tree::Node->new($self, $cid);
-    }
-
-    sub insert_at {
-        my ($self, $node, $pos) = @_;
-        my $id = _node_id($node); return undef unless defined $id;
-        my $cid = $self->tree->insert_at($id, $pos);
-        return Tree::Node->new($self, $cid);
-    }
-
-    sub _remove_node_from_parent {
-        my ($self, $node) = @_;
-        my $id = _node_id($node); return unless defined $id;
-        $self->tree->remove_node($id);
-    }
-
-    sub traverse {
-        my ($self, $cb) = @_;
-        $self->tree->traverse(sub {
-            my ($id) = @_;
-            $cb->(Tree::Node->new($self, $id));
-        });
-    }
+    sub add_child { Tree::Node->new($_[0], $_[0]->tree->add_child(_node_id($_[1]))) }
+    sub insert_at { Tree::Node->new($_[0], $_[0]->tree->insert_at(_node_id($_[1]), $_[2])) }
+    sub _remove_node_from_parent { $_[0]->tree->remove_node(_node_id($_[1])) }
     1;
 }
 
@@ -483,10 +479,15 @@ package Tree {
 package Tree::Indexed {
     use strict;
     use warnings;
+    use Scalar::Util qw(blessed);
+
+    use overload 
+        '""'     => sub { overload::StrVal($_[0]) },
+        '=='     => sub { blessed($_[0]) && blessed($_[1]) && overload::StrVal($_[0]) eq overload::StrVal($_[1]) },
+        fallback => 1;
     use constant ROOT => 0;
 
     sub new {
-        my ($class) = @_;
         return bless {
             next_index   => 1,
             uid          => [undef],
@@ -496,81 +497,29 @@ package Tree::Indexed {
             last_child   => [undef],
             prev_sibling => [undef],
             next_sibling => [undef],
-        }, $class;
+        }, $_[0];
     }
 
     sub _garbage_collect {
         my ($self) = @_;
-        $self->{uid}          = [];
-        $self->{value}        = [];
-        $self->{parent}       = [];
-        $self->{first_child}  = [];
-        $self->{last_child}   = [];
-        $self->{prev_sibling} = [];
-        $self->{next_sibling} = [];
-        $self->{next_index}   = 1;
-        return;
+        for (qw(uid value parent first_child last_child prev_sibling next_sibling)) { $self->{$_} = [] }
+        $self->{next_index} = 1;
     }
 
-    sub root { 0 }
+    sub value        { @_ == 3 ? ($_[0]->{value}[$_[1]] = $_[2]) : $_[0]->{value}[$_[1]] }
+    sub parent       { @_ == 3 ? ($_[0]->{parent}[$_[1]] = $_[2]) : $_[0]->{parent}[$_[1]] }
+    sub uid          { @_ == 3 ? ($_[0]->{uid}[$_[1]] = $_[2]) : $_[0]->{uid}[$_[1]] }
+    sub first_child  { @_ == 3 ? ($_[0]->{first_child}[$_[1]] = $_[2]) : $_[0]->{first_child}[$_[1]] }
+    sub last_child   { @_ == 3 ? ($_[0]->{last_child}[$_[1]] = $_[2]) : $_[0]->{last_child}[$_[1]] }
+    sub prev_sibling { @_ == 3 ? ($_[0]->{prev_sibling}[$_[1]] = $_[2]) : $_[0]->{prev_sibling}[$_[1]] }
+    sub next_sibling { @_ == 3 ? ($_[0]->{next_sibling}[$_[1]] = $_[2]) : $_[0]->{next_sibling}[$_[1]] }
 
-    sub value {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{value}[$idx] = $v) : $self->{value}[$idx];
-    }
-
-    sub parent {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{parent}[$idx] = $v) : $self->{parent}[$idx];
-    }
-
-    sub uid {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{uid}[$idx] = $v) : $self->{uid}[$idx];
-    }
-
-    sub first_child {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{first_child}[$idx] = $v) : $self->{first_child}[$idx];
-    }
-
-    sub last_child {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{last_child}[$idx] = $v) : $self->{last_child}[$idx];
-    }
-
-    sub prev_sibling {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{prev_sibling}[$idx] = $v) : $self->{prev_sibling}[$idx];
-    }
-
-    sub next_sibling {
-        my ($self, $idx, $v) = @_;
-        return undef unless defined $idx && $idx >= 0;
-        return @_ == 3 ? ($self->{next_sibling}[$idx] = $v) : $self->{next_sibling}[$idx];
-    }
-
-    sub is_root {
-        my ($self, $idx) = @_;
-        return 0 unless defined $idx && $idx >= 0;
-        return $idx == ROOT;
-    }
-
-    sub is_leaf {
-        my ($self, $idx) = @_;
-        return 1 unless defined $idx && $idx >= 0;
-        return !defined $self->{first_child}[$idx];
-    }
+    sub is_root { defined($_[1]) && $_[1] == ROOT }
+    sub is_leaf { !defined $_[0]->{first_child}[$_[1]] }
 
     sub depth {
         my ($self, $idx) = @_;
-        return 0 unless defined $idx && $idx >= 0;
+        return 0 unless defined $idx;
         my $d = 0;
         while (defined $idx) {
             $idx = $self->{parent}[$idx];
@@ -581,7 +530,7 @@ package Tree::Indexed {
 
     sub children {
         my ($self, $idx) = @_;
-        return () unless defined $idx && $idx >= 0;
+        return () unless defined $idx;
         my @out;
         my $cur = $self->{first_child}[$idx];
         while (defined $cur) {
@@ -591,15 +540,10 @@ package Tree::Indexed {
         return @out;
     }
 
-    sub add_child {
-        my ($self, $pid) = @_;
-        return undef unless defined $pid && $pid >= 0;
-        return $self->insert_at($pid, -1);
-    }
+    sub add_child { $_[0]->insert_at($_[1], -1) }
 
     sub insert_at {
         my ($self, $pid, $pos) = @_;
-        return undef unless defined $pid && $pid >= 0;
         my $idx = $self->{next_index}++;
         $self->parent($idx, $pid);
         my $first = $self->{first_child}[$pid];
@@ -613,24 +557,21 @@ package Tree::Indexed {
             $self->{next_sibling}[$idx]   = $first;
             $self->{prev_sibling}[$first] = $idx;
             $self->{first_child}[$pid]    = $idx;
-            $self->{last_child}[$pid]     = $idx unless defined $self->{last_child}[$pid];
             return $idx;
         }
+        
         my $cur = $first;
         if (defined $pos && $pos > 0) {
             my $i = 0;
             while (defined $cur && $i < $pos - 1) {
-                $cur = $self->{next_sibling}[$cur];
+                my $nxt = $self->{next_sibling}[$cur];
+                last unless defined $nxt;
+                $cur = $nxt;
                 $i++;
             }
         }
-        if (!defined $pos || $pos < 0 || !defined $cur) {
+        if (!defined $pos || $pos < 0 || !defined $self->{next_sibling}[$cur] && $pos > 0) {
             my $last = $self->{last_child}[$pid];
-            if (!defined $last) {
-                $self->{first_child}[$pid] = $idx;
-                $self->{last_child}[$pid]  = $idx;
-                return $idx;
-            }
             $self->{next_sibling}[$last] = $idx;
             $self->{prev_sibling}[$idx]  = $last;
             $self->{last_child}[$pid]    = $idx;
@@ -640,53 +581,29 @@ package Tree::Indexed {
         $self->{next_sibling}[$cur] = $idx;
         $self->{prev_sibling}[$idx] = $cur;
         $self->{next_sibling}[$idx] = $next;
-        if (defined $next) {
-            $self->{prev_sibling}[$next] = $idx;
-        } else {
-            $self->{last_child}[$pid] = $idx;
-        }
+        $self->{prev_sibling}[$next] = $idx if defined $next;
         return $idx;
     }
 
     sub remove_node {
         my ($self, $idx) = @_;
-        return unless defined $idx && $idx >= 0;
         return if $self->is_root($idx);
-        
         my $pid = $self->{parent}[$idx];
         return unless defined $pid;
         
         my $prev = $self->{prev_sibling}[$idx];
         my $next = $self->{next_sibling}[$idx];
         
-        if (defined $prev) {
-            $self->{next_sibling}[$prev] = $next;
-        } else {
-            $self->{first_child}[$pid] = $next;
-        }
+        if (defined $prev) { $self->{next_sibling}[$prev] = $next } 
+        else { $self->{first_child}[$pid] = $next }
         
-        if (defined $next) {
-            $self->{prev_sibling}[$next] = $prev;
-        } else {
-            $self->{last_child}[$pid] = $prev;
-        }
+        if (defined $next) { $self->{prev_sibling}[$next] = $prev } 
+        else { $self->{last_child}[$pid] = $prev }
         
         $self->{parent}[$idx]       = undef;
         $self->{prev_sibling}[$idx] = undef;
         $self->{next_sibling}[$idx] = undef;
-        
         return $idx;
-    }
-
-    sub traverse {
-        my ($self, $cb) = @_;
-        die "callback required" unless ref $cb eq 'CODE';
-        my @stack = (ROOT);
-        while (@stack) {
-            my $idx = pop @stack;
-            $cb->($idx) unless defined $idx && $idx == ROOT;
-            push @stack, reverse $self->children($idx);
-        }
     }
     1;
 }

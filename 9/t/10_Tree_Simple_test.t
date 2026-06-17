@@ -124,8 +124,10 @@ ok(!$tree->isLeaf());
 
 # now that we have assigned a parent it
 # will no longer be considered a root
+use Data::Dumper;
+#warn Dumper($sub_tree);
+#warn Dumper($tree);
 ok(!$sub_tree->isRoot());
-
 # check the depth of the sub_tree
 cmp_ok($sub_tree->getDepth(), '==', 0, '... depth should be 0 now');
 
