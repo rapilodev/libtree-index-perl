@@ -345,42 +345,44 @@ package Tree::Simple {
         return $self->_new_treenode($self, $self->{_tree}, $sib);
     }
 
-    sub getDepth {
-        my ($self) = @_;
-        my $depth  = -1;
-        my $curr   = $self;
-
-        # Walk up the wrapper chain to count distance to root
-        while (defined($curr) && !$curr->isRoot) {
-            $depth++;
-            $curr = $curr->getParent;
+sub getDepth {
+    my ($self) = @_;
+    my $depth = -1;
+    my $curr = $self;
+    
+    # Climb up the wrapper chain
+    while (defined($curr) && !$curr->isRoot) {
+        $depth++;
+        $curr = $curr->getParent;
+    }
+    return $depth;
+}
+sub traverse {
+    my ($self, $func) = @_;
+    my $abort = 0;
+    
+    my $traverser;
+    $traverser = sub {
+        my $node = shift;
+        return if $abort;
+        
+        # 1. Execute logic on current node
+        my $res = $func->($node);
+        
+        # 2. Check for signal to stop
+        if (defined $res && $res eq 'ABORT') {
+            $abort = 1;
+            return;
         }
-        return $depth;
-    }
-
-    sub traverse {
-        my ($self, $func) = @_;
-        my $abort = 0;
-
-        my $traverser;
-        $traverser = sub {
-            my $node = shift;
-            return if $abort;
-
-            # Execute user function and check for ABORT signal
-            my $res = $func->($node);
-            if (defined $res && $res eq 'ABORT') {
-                $abort = 1;
-                return;
-            }
-
-            # Recurse through wrapper children
-            foreach my $child ($node->getAllChildren) {
-                $traverser->($child) unless $abort;
-            }
-        };
-        $traverser->($self);
-    }
+        
+        # 3. Recurse only through THIS node's wrapper-children
+        foreach my $child ($node->getAllChildren) {
+            $traverser->($child) unless $abort;
+        }
+    };
+    
+    $traverser->($self);
+}
 
     sub post_traverse {
         my ($self, $func) = @_;
