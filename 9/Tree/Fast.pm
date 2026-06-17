@@ -78,13 +78,7 @@ sub _new_treenode {
     sub isRoot        { $_[0]->{_node}->is_root }
     sub isLeaf        { $_[0]->{_node}->is_leaf }
     
-    # Tree::Simple treats its own root as depth -1, and immediate children as depth 0
-    sub getDepth {
-        my ($self) = @_;
-        return -1 if $self->{_node}->is_root;
-        return $self->{_node}->depth - 1;
-    }
-
+    
     sub depth         { shift->getDepth(@_) }
     sub height        { shift->getHeight(@_) }
     sub width         { shift->getWidth(@_) }
@@ -330,33 +324,76 @@ sub removeChildAt {
         return $self->_new_treenode($self, $self->{_tree}, $sib);
     }
 
+sub getDepth {
+        my ($self) = @_;
+        my $depth = -1;
+        my $curr = $self;
+        
+        # Dynamically calculate depth by walking up the true wrapper hierarchy
+        # Root is -1. Children are 0. Grandchildren are 1.
+        while (defined($curr) && !$curr->isRoot) {
+            $depth++;
+            $curr = $curr->getParent;
+        }
+        
+        return $depth;
+    }
+
     sub traverse {
-        my ($self, $pre_cb, $post_cb) = @_;
-        croak "Callback must be a CODE reference" unless ref $pre_cb eq 'CODE';
-        $self->_traverse_recursive($self->{_node}, $pre_cb, $post_cb);
+        my ($self, $func) = @_;
+        my $abort = 0;
+        
+        my $traverser;
+        $traverser = sub {
+            my $node = shift;
+            return if $abort;
+            
+            # Evaluate the node
+            my $res = $func->($node);
+            
+            # Safely trap Tree::Simple's ABORT constant to stop recursion
+            if (defined $res && $res eq 'ABORT') {
+                $abort = 1;
+                return;
+            }
+            
+            # Recurse through wrapper children
+            foreach my $child ($node->getAllChildren) {
+                $traverser->($child) unless $abort;
+            }
+        };
+        
+        # Guarantee we start exactly at the node traverse was called on
+        $traverser->($self);
     }
 
-    sub _traverse_recursive {
-        my ($self, $node, $pre_cb, $post_cb) = @_;
-        my $wrapped = $self->_new_treenode($self, $self->{_tree}, $node);
+    sub post_traverse {
+        my ($self, $func) = @_;
+        my $abort = 0;
         
-        if ($pre_cb) {
-            my $res = $pre_cb->($wrapped);
-            return 'ABORT' if defined($res) && $res eq 'ABORT';
-        }
+        my $traverser;
+        $traverser = sub {
+            my $node = shift;
+            return if $abort;
+            
+            # Recurse down first (Post-Order)
+            foreach my $child ($node->getAllChildren) {
+                $traverser->($child) unless $abort;
+            }
+            
+            return if $abort;
+            
+            # Evaluate the node after children
+            my $res = $func->($node);
+            
+            if (defined $res && $res eq 'ABORT') {
+                $abort = 1;
+                return;
+            }
+        };
         
-        for my $child ($node->children) {
-            my $res = $self->_traverse_recursive($child, $pre_cb, $post_cb);
-            return 'ABORT' if $res && $res eq 'ABORT';
-        }
-        
-        if ($post_cb) {
-            my $res = $post_cb->($wrapped);
-            return 'ABORT' if defined($res) && $res eq 'ABORT';
-        }
-        return '';
+        $traverser->($self);
     }
-
     sub getHeight {
         my ($self) = @_;
         return 1 if $self->isLeaf;
