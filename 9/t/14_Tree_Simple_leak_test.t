@@ -4,23 +4,24 @@ use strict;
 use warnings;
 
 use Test::More;
+require "Tree/Fast.pm";
 
 eval "use Test::Memory::Cycle 1.02";
 plan skip_all => "Test::Memory::Cycle required for testing memory leaks" if $@;
 
 plan tests => 51;
 
-use_ok('Tree::Fast');
+use_ok('Tree::Simple');
 
 #diag "parental connections must be destroyed manually";
 
 { #diag "verify the problem exists";
 
-    my $tree2 = Tree::Fast->new("2");
+    my $tree2 = Tree::Simple->new("2");
     ok($tree2->isRoot(), '... tree2 is a ROOT');    
     my $tree1_UID;
     {
-        my $tree1 = Tree::Fast->new("1");
+        my $tree1 = Tree::Simple->new("1");
         $tree1_UID = $tree1->getUID();
         $tree1->addChild($tree2);
         ok(!$tree2->isRoot(), '... now tree2 is not a ROOT');
@@ -37,11 +38,11 @@ use_ok('Tree::Fast');
 
 { #diag "this fixes the problem";
 
-    my $tree2 = Tree::Fast->new("2");
+    my $tree2 = Tree::Simple->new("2");
     ok($tree2->isRoot(), '... tree2 is a ROOT');    
     
     {
-        my $tree1 = Tree::Fast->new("1");
+        my $tree1 = Tree::Simple->new("1");
         $tree1->addChild($tree2);
         ok(!$tree2->isRoot(), '... now tree2 is not a ROOT');
 
@@ -58,15 +59,15 @@ use_ok('Tree::Fast');
 
 { 
 
-    my $tree2 = Tree::Fast->new("2");
+    my $tree2 = Tree::Simple->new("2");
     ok($tree2->isRoot(), '... tree2 is a ROOT');  
     ok($tree2->isLeaf(), '... tree2 is a Leaf');      
-    my $tree3 = Tree::Fast->new("3");  
+    my $tree3 = Tree::Simple->new("3");  
     ok($tree3->isRoot(), '... tree3 is a ROOT');  
     ok($tree3->isLeaf(), '... tree3 is a Leaf'); 
     
     {
-        my $tree1 = Tree::Fast->new("1");
+        my $tree1 = Tree::Simple->new("1");
         $tree1->addChild($tree2);
         ok(!$tree2->isRoot(), '... now tree2 is not a ROOT');
         $tree2->addChild($tree3);
@@ -96,11 +97,11 @@ use_ok('Tree::Fast');
 
 #diag "child connections are strong";
 {
-    my $tree1 = Tree::Fast->new("1");
+    my $tree1 = Tree::Simple->new("1");
     my $tree2_UID;
 
     {
-        my $tree2 = Tree::Fast->new("2");    
+        my $tree2 = Tree::Simple->new("2");    
         $tree1->addChild($tree2);
         $tree2_UID = $tree2->getUID();
         
@@ -118,12 +119,12 @@ use_ok('Tree::Fast');
 
 #diag "expand upon this issue";
 {
-    my $tree1 = Tree::Fast->new("1");
+    my $tree1 = Tree::Simple->new("1");
     my $tree2_UID;
-    my $tree3 = Tree::Fast->new("3");    
+    my $tree3 = Tree::Simple->new("3");    
 
     {
-        my $tree2 = Tree::Fast->new("2");    
+        my $tree2 = Tree::Simple->new("2");    
         $tree1->addChild($tree2);
         $tree2_UID = $tree2->getUID();
         $tree2->addChild($tree3);

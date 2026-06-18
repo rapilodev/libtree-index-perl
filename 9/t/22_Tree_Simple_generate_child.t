@@ -4,15 +4,16 @@ use strict;
 use warnings;
 
 #use Data::TreeDumper;
+require "Tree/Fast.pm";
 
 use Test::More;
-use Tree::Fast;
+#use Tree::Simple;
 
 # ---------------
 
-my($root) = Tree::Fast -> new('Root', Tree::Fast -> ROOT);
+my($root) = Tree::Simple -> new('Root', Tree::Simple -> ROOT);
 
-isa_ok($root, 'Tree::Fast');
+isa_ok($root, 'Tree::Simple');
 
 $root -> generateChild('Child 1.0');
 $root -> generateChild('Child 2.0');
@@ -27,14 +28,14 @@ my($name);
 
 for my $i (1 .. 2)
 {
-	isa_ok($root -> getChild($i - 1), 'Tree::Fast', "Child $i");
+	isa_ok($root -> getChild($i - 1), 'Tree::Simple', "Child $i");
 
 	$name = $root -> getChild($i - 1) -> getNodeValue;
 
 	ok($name eq "Child $i.0", "Retrieved value of Child $i ($name)");
 }
 
-isa_ok($root -> getChild(0) -> getChild(0), 'Tree::Fast', 'Child 1 of Child 1');
+isa_ok($root -> getChild(0) -> getChild(0), 'Tree::Simple', 'Child 1 of Child 1');
 
 $name = $root -> getChild(0) -> getChild(0) -> getNodeValue;
 

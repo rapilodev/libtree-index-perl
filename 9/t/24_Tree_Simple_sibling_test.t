@@ -4,29 +4,30 @@ use strict;
 use warnings;
 
 use Test::More;
+require "Tree/Fast.pm";
 
-use Tree::Fast;
+#use Tree::Simple;
 
 # ---------------------------
 
-my($tree) = Tree::Fast->new(Tree::Fast->ROOT)
+my($tree) = Tree::Simple->new(Tree::Simple->ROOT)
 				->addChildren
 					(
-						Tree::Fast->new("A")
+						Tree::Simple->new("A")
 							->addChildren
 								(
-									Tree::Fast->new("A.1"),
-									Tree::Fast->new("A.2")
+									Tree::Simple->new("A.1"),
+									Tree::Simple->new("A.2")
 								),
-						Tree::Fast->new("B")
+						Tree::Simple->new("B")
 							->addChildren
 								(
-									Tree::Fast->new("B.1")
+									Tree::Simple->new("B.1")
 								),
-						Tree::Fast->new("C")
+						Tree::Simple->new("C")
 					);
 
-isa_ok($tree, 'Tree::Fast');
+isa_ok($tree, 'Tree::Simple');
 
 my(@kids) = $tree->getAllChildren;
 

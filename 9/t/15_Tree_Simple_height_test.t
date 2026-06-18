@@ -4,19 +4,20 @@ use strict;
 use warnings;
 
 use Test::More tests => 67;
+require "Tree/Fast.pm";
 
 BEGIN { 
-	use_ok('Tree::Fast'); 
+	use_ok('Tree::Simple'); 
 };
 
 
 { # test height (with pictures)
     
-    my $tree = Tree::Fast->new();
-    isa_ok($tree, 'Tree::Fast');
+    my $tree = Tree::Simple->new();
+    isa_ok($tree, 'Tree::Simple');
     
-    my $D = Tree::Fast->new('D');
-    isa_ok($D, 'Tree::Fast');
+    my $D = Tree::Simple->new('D');
+    isa_ok($D, 'Tree::Simple');
     
     $tree->addChild($D);
     
@@ -25,8 +26,8 @@ BEGIN {
     
     cmp_ok($D->getHeight(), '==', 1, '... D has a height of 1');
     
-    my $E = Tree::Fast->new('E');
-    isa_ok($E, 'Tree::Fast');
+    my $E = Tree::Simple->new('E');
+    isa_ok($E, 'Tree::Simple');
     
     $D->addChild($E);
     
@@ -38,8 +39,8 @@ BEGIN {
     cmp_ok($D->getHeight(), '==', 2, '... D has a height of 2');
     cmp_ok($E->getHeight(), '==', 1, '... E has a height of 1');
     
-    my $F = Tree::Fast->new('F');
-    isa_ok($F, 'Tree::Fast');
+    my $F = Tree::Simple->new('F');
+    isa_ok($F, 'Tree::Simple');
     
     $E->addChild($F);
     
@@ -54,8 +55,8 @@ BEGIN {
     cmp_ok($E->getHeight(), '==', 2, '... E has a height of 2');
     cmp_ok($F->getHeight(), '==', 1, '... F has a height of 1');
     
-    my $C = Tree::Fast->new('C');
-    isa_ok($C, 'Tree::Fast');
+    my $C = Tree::Simple->new('C');
+    isa_ok($C, 'Tree::Simple');
     
     $D->addChild($C);
     
@@ -71,8 +72,8 @@ BEGIN {
     cmp_ok($F->getHeight(), '==', 1, '... F has a height of 1');
     cmp_ok($C->getHeight(), '==', 1, '... C has a height of 1');
     
-    my $B = Tree::Fast->new('B');
-    isa_ok($B, 'Tree::Fast');
+    my $B = Tree::Simple->new('B');
+    isa_ok($B, 'Tree::Simple');
     
     $C->addChild($B);
     
@@ -90,8 +91,8 @@ BEGIN {
     cmp_ok($C->getHeight(), '==', 2, '... C has a height of 2');
     cmp_ok($B->getHeight(), '==', 1, '... B has a height of 1');
     
-    my $A = Tree::Fast->new('A');
-    isa_ok($A, 'Tree::Fast');
+    my $A = Tree::Simple->new('A');
+    isa_ok($A, 'Tree::Simple');
     
     $B->addChild($A);
     
@@ -111,8 +112,8 @@ BEGIN {
     cmp_ok($B->getHeight(), '==', 2, '... B has a height of 2');
     cmp_ok($A->getHeight(), '==', 1, '... A has a height of 1');
     
-    my $G = Tree::Fast->new('G');
-    isa_ok($G, 'Tree::Fast');
+    my $G = Tree::Simple->new('G');
+    isa_ok($G, 'Tree::Simple');
     
     $E->insertChild(0, $G);
     
@@ -133,8 +134,8 @@ BEGIN {
     cmp_ok($B->getHeight(), '==', 2, '... B has a height of 2');
     cmp_ok($A->getHeight(), '==', 1, '... A has a height of 1');
     
-    my $H = Tree::Fast->new('H');
-    isa_ok($H, 'Tree::Fast');
+    my $H = Tree::Simple->new('H');
+    isa_ok($H, 'Tree::Simple');
     
     $G->addChild($H);
     

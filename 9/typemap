@@ -1,0 +1,10 @@
+TYPEMAP
+tree_index * O_TREE_INDEX
+
+INPUT
+O_TREE_INDEX
+    if (sv_isobject($arg) && sv_derived_from($arg, \"Tree::Indexed::XS\")) {
+        $var = INT2PTR($type, SvIV((SV*)SvRV($arg)));
+    } else {
+        croak(\"Object is not of type Tree::Indexed::XS\");
+    }

@@ -26,10 +26,10 @@ my $rss_before = rss_mb();
 # Build tree
 #
 my $build_start = time();
-my $root = Tree::Simple->new("root");
-my @current = ($root);
-my $created   = 1;
-my $remaining = $TOTAL_NODES - 1;
+my $root        = Tree::Simple->new("root");
+my @current     = ($root);
+my $created     = 1;
+my $remaining   = $TOTAL_NODES - 1;
 for my $level (1 .. $LEVELS - 1) {
     last if $remaining <= 0;
     my $levels_left = $LEVELS - $level;
@@ -44,7 +44,7 @@ for my $level (1 .. $LEVELS - 1) {
     for my $i (0 .. $target - 1) {
         last if $remaining <= 0;
         my $parent = $current[$i % $parents];
-        my $child = $parent->addChild(Tree::Simple->new("node_$created"));
+        my $child  = $parent->addChild(Tree::Simple->new("node_$created"));
         push @next, $child;
         ++$created;
         --$remaining;
@@ -58,13 +58,13 @@ if ($remaining > 0) {
     my @parents = @current;
     for my $i (1 .. $remaining) {
         my $parent = $parents[($i - 1) % @parents];
-        my $child = $parent->addChild(Tree::Simple->new("extra_$i"));
+        my $child  = $parent->addChild(Tree::Simple->new("extra_$i"));
         ++$created;
     }
 }
 
 warn 2;
-my $build_time = time() - $build_start;
+my $build_time      = time() - $build_start;
 my $rss_after_build = rss_mb();
 print "=========================\n";
 print "Build\n";
@@ -81,7 +81,7 @@ printf "RSS after build     : %.2f MB\n", $rss_after_build;
 #
 # Traverse benchmark
 #
-my $visited = 0;
+my $visited        = 0;
 my $traverse_start = time();
 $root->traverse(
     sub {
@@ -90,7 +90,7 @@ $root->traverse(
 );
 
 warn 3;
-my $traverse_time = time() - $traverse_start;
+my $traverse_time      = time() - $traverse_start;
 my $rss_after_traverse = rss_mb();
 
 #

@@ -5,15 +5,16 @@ use warnings;
 
 use Test::More tests => 52;
 use Test::Exception;
+require "Tree/Fast.pm";
 
 ## ----------------------------------------------------------------------------
-## Exception Tests for Tree::Fast
+## Exception Tests for Tree::Simple
 ## ----------------------------------------------------------------------------
 
-use Tree::Fast;
+#use Tree::Simple;
 
 my $BAD_OBJECT = bless({}, "Fail");
-my $TEST_SUB_TREE = Tree::Fast->new("test");
+my $TEST_SUB_TREE = Tree::Simple->new("test");
 
 # -----------------------------------------------
 # exceptions for new
@@ -21,22 +22,22 @@ my $TEST_SUB_TREE = Tree::Fast->new("test");
 
 # not giving a proper argument for parent
 throws_ok {
-	Tree::Fast->new("test", 0);
+	Tree::Simple->new("test", 0);
 } qr/^Insufficient Arguments \:/, '... this should die';
 
 # not giving a proper argument for parent
 throws_ok {
-	Tree::Fast->new("test", []);
+	Tree::Simple->new("test", []);
 } qr/^Insufficient Arguments \:/, '... this should die';
 
 # not giving a proper argument for parent
 throws_ok {
-	Tree::Fast->new("test", $BAD_OBJECT);
+	Tree::Simple->new("test", $BAD_OBJECT);
 } qr/^Insufficient Arguments \:/, '... this should die';
 
 # -----------------------------------------------
 
-my $tree = Tree::Fast->new(Tree::Fast->ROOT);
+my $tree = Tree::Simple->new(Tree::Simple->ROOT);
 
 # -----------------------------------------------
 # exceptions for setNodeValue
@@ -302,7 +303,7 @@ throws_ok {
 	$tree->accept([]);
 } qr/^Insufficient Arguments \: You must supply a valid Visitor object/, '... this should die';
 
-# passing non-Tree::Fast::Visitor arg to accept
+# passing non-Tree::Simple::Visitor arg to accept
 throws_ok {
 	$tree->accept($BAD_OBJECT);
 } qr/^Insufficient Arguments \: You must supply a valid Visitor object/, '... this should die';
@@ -312,7 +313,7 @@ throws_ok {
     sub visit {}
 }
 
-# passing non-Tree::Fast::Visitor arg to accept
+# passing non-Tree::Simple::Visitor arg to accept
 lives_ok {
 	$tree->accept(bless({}, "TestPackage"));
 } '... but, this should live';
@@ -337,7 +338,7 @@ throws_ok {
 } qr/^Insufficient Arguments/, '... this should croak';
 
 # and if the parent that is given is an object but
-# is not a Tree::Fast object
+# is not a Tree::Simple object
 throws_ok {
 	$tree->_setParent($BAD_OBJECT);
 } qr/^Insufficient Arguments/, '... this should croak';
@@ -351,5 +352,5 @@ throws_ok {
 } qr/^Insufficient Arguments/, '... this should croak';
 
 ## ----------------------------------------------------------------------------
-## end Exception Tests for Tree::Fast
+## end Exception Tests for Tree::Simple
 ## ----------------------------------------------------------------------------	

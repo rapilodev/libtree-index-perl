@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 287;
+use Test::More tests => 284;
 require "Tree/Fast.pm";
 
 
