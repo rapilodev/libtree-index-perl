@@ -4,9 +4,7 @@ use strict;
 use warnings;
 
 use Test::More;
-require "Tree/Fast.pm";
-
-#use Tree::Simple;
+use lib "lib/";
 
 # ---------------------------
 

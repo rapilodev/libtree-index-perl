@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Test::More;
-require "Tree/Fast.pm";
+use lib "lib/";
 
 eval "use Test::Memory::Cycle 1.02";
 plan skip_all => "Test::Memory::Cycle required for testing memory leaks" if $@;

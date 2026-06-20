@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Time::HiRes qw(time);
 use POSIX       qw(sysconf);
-require './Tree/Fast.pm';    # adjust path if necessary
+use Tree::Simple; 
 
 my $TOTAL_NODES = 50_000;
 my $LEVELS      = 10;

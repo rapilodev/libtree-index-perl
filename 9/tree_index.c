@@ -120,7 +120,7 @@ void tree_index_remove_node(tree_index* t, int idx) {
     t->next_sibling[idx] = -1;
 }
 
-void tree_index_attach_node(tree_index* t, int pid, int idx, int pos) {
+void tree_index_attach_child(tree_index* t, int pid, int idx, int pos) {
     if (t->parent[idx] != -1) {
         tree_index_remove_node(t, idx);
     }

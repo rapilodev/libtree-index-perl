@@ -140,9 +140,9 @@ OUTPUT:
 # --- Structural Methods (Added from original perl logic) ---
 
 void
-attach_node(tree_index *t, int pid, int idx, int pos)
+attach_child(tree_index *t, int pid, int idx, int pos)
 CODE:
-    tree_index_attach_node(t, pid, idx, pos);
+    tree_index_attach_child(t, pid, idx, pos);
 
 void
 remove_node(tree_index *t, int idx)
@@ -153,7 +153,7 @@ int
 insert_at(tree_index *t, int pid, int pos)
 CODE:
     int idx = tree_index_add_node(t);
-    tree_index_attach_node(t, pid, idx, pos);
+    tree_index_attach_child(t, pid, idx, pos);
     RETVAL = idx;
 OUTPUT:
     RETVAL
@@ -162,7 +162,7 @@ int
 add_child(tree_index *t, int pid)
 CODE:
     int idx = tree_index_add_node(t);
-    tree_index_attach_node(t, pid, idx, -1);
+    tree_index_attach_child(t, pid, idx, -1);
     RETVAL = idx;
 OUTPUT:
     RETVAL

@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use Data::Dumper;
-require "Tree/Fast.pm";
+#require "Tree/Fast.pm";
 
 # ---------------------------------
 # 1) Tree erstellen

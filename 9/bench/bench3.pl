@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use Time::HiRes qw(time);
+use Tree::Indexed::PP;
 use Tree::Indexed::XS;
 
 my $N = 100_000;
@@ -45,10 +46,10 @@ sub build_tree {
 
         # children structure (IMPORTANT: use SETTERS)
         if ($i % 10 == 0) {
-            $tree->first_child_set($parent, $i);
+            $tree->first_child($parent, $i);
         }
 
-        $tree->last_child_set($parent, $i);
+        $tree->last_child($parent, $i);
 
         # siblings (linear chain in this benchmark)
         if ($i > 0) {

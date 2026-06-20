@@ -1,11 +1,9 @@
-# ============================================================================
-# PACKAGE: Tree::Simple
-# ============================================================================
 package Tree::Simple {
     use strict;
     use warnings;
     use Carp         qw(croak);
     use Scalar::Util qw(blessed refaddr);
+    use Tree::Node; 
 
     use overload
       '""' => sub {
@@ -173,39 +171,23 @@ package Tree::Simple {
     }
 
     sub getChildren {shift->getAllChildren(@_)}
-
-    sub removeChildAt {
-        my ($self, $index) = @_;
-        my @children = $self->{_node}->children;
-        return undef if $index < 0 || $index >= @children;
-        my $target_node = $children[$index];
-
-        # Unlink the node from the parent in the backend
-        $self->{_tree}->_remove_node_from_parent($target_node);
-
-        return $self->_new_treenode($self, $self->{_tree}, $target_node);
-    }
-
-    sub removeChild {
-        my ($self, $child_or_idx) = @_;
-        return undef unless defined $child_or_idx;
-        if (ref($child_or_idx) && $child_or_idx->isa(__PACKAGE__)) {
-            my $idx = 0;
-            for my $child ($self->getAllChildren) {
-                if ($child->{_node}->id == $child_or_idx->{_node}->id) {
-                    return $self->removeChildAt($idx);
-                }
-                $idx++;
-            }
-            return undef;
-        } else {
-            return $self->removeChildAt($child_or_idx);
-        }
-    }
-
     sub getChildAt    {shift->getChild(@_)}
     sub getFirstChild {$_[0]->getChild(0)}
     sub getLastChild  {$_[0]->getChild($_[0]->getChildCount - 1)}
+
+    sub getNextSibling {
+        my ($self) = @_;
+        my $sib = $self->{_node}->next_sibling;
+        return undef unless defined $sib;
+        return $self->_new_treenode($self, $self->{_tree}, $sib);
+    }
+
+    sub getPreviousSibling {
+        my ($self) = @_;
+        my $sib = $self->{_node}->prev_sibling;
+        return undef unless defined $sib;
+        return $self->_new_treenode($self, $self->{_tree}, $sib);
+    }
 
     sub addSibling {
         my ($self, @args) = @_;
@@ -254,6 +236,35 @@ package Tree::Simple {
         return wantarray ? @siblings : \@siblings;
     }
 
+    sub removeChildAt {
+        my ($self, $index) = @_;
+        my @children = $self->{_node}->children;
+        return undef if $index < 0 || $index >= @children;
+        my $target_node = $children[$index];
+
+        # Unlink the node from the parent in the backend
+        $self->{_tree}->_remove_node_from_parent($target_node);
+
+        return $self->_new_treenode($self, $self->{_tree}, $target_node);
+    }
+
+    sub removeChild {
+        my ($self, $child_or_idx) = @_;
+        return undef unless defined $child_or_idx;
+        if (ref($child_or_idx) && $child_or_idx->isa(__PACKAGE__)) {
+            my $idx = 0;
+            for my $child ($self->getAllChildren) {
+                if ($child->{_node}->id == $child_or_idx->{_node}->id) {
+                    return $self->removeChildAt($idx);
+                }
+                $idx++;
+            }
+            return undef;
+        } else {
+            return $self->removeChildAt($child_or_idx);
+        }
+    }
+
     sub clone {
         my ($self)      = @_;
         my $cloned_tree = __PACKAGE__->new($self->getNodeValue);
@@ -288,20 +299,6 @@ package Tree::Simple {
     }
 
     sub DESTROY {
-    }
-
-    sub getNextSibling {
-        my ($self) = @_;
-        my $sib = $self->{_node}->next_sibling;
-        return undef unless defined $sib;
-        return $self->_new_treenode($self, $self->{_tree}, $sib);
-    }
-
-    sub getPreviousSibling {
-        my ($self) = @_;
-        my $sib = $self->{_node}->prev_sibling;
-        return undef unless defined $sib;
-        return $self->_new_treenode($self, $self->{_tree}, $sib);
     }
 
     sub getDepth {

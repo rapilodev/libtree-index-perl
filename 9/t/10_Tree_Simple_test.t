@@ -4,18 +4,18 @@ use strict;
 use warnings;
 
 use Test::More tests => 284;
-require "Tree/Fast.pm";
+use lib "lib/";
 
 
 BEGIN {
-#	use_ok('Tree::Simple');
+	use_ok('Tree::Indexed::XS');
 };
 
 ## ----------------------------------------------------------------------------
-## Test for Tree::Simple
+## Test for Tree::Indexed::XS
 ## ----------------------------------------------------------------------------
 # NOTE:
-# This test checks the base functionality of the Tree::Simple object. The test
+# This test checks the base functionality of the Tree::Indexed::XS object. The test
 # is so large because (at the moment) each test relies upon the tree created
 # by the previous tests. It is not the most efficient or sensible thing to do
 # i know, but its how it is for now. There are close to 300 tests here, so
@@ -23,13 +23,13 @@ BEGIN {
 ## ----------------------------------------------------------------------------
 
 # check that we have a constructor
-#can_ok("Tree::Simple", 'new');
+#can_ok("Tree::Indexed::XS", 'new');
 # and that our ROOT constant is properly defined
-#can_ok("Tree::Simple", 'ROOT');
+#can_ok("Tree::Indexed::XS", 'ROOT');
 my $tree;
 # make a root for our tree
-$tree = Tree::Simple->new("root tree", Tree::Simple->ROOT);
-isa_ok($tree, 'Tree::Simple');
+$tree = Tree::Indexed::XS->new("root tree", Tree::Indexed::XS->ROOT);
+isa_ok($tree, 'Tree::Indexed::XS');
 
 
 # test the interface
@@ -94,15 +94,15 @@ can_ok($tree, 'setUID');
 $tree->setUID("This is our unique identifier");
 
 is($tree->getUID(), 'This is our unique identifier', '... UIDs match what we have set it to');
-isnt("$tree", "Tree::Simple=HASH(" . $tree->getUID() . ")", '... our UID is no longer derived from our hex address');
+isnt("$tree", "Tree::Indexed::XS=HASH(" . $tree->getUID() . ")", '... our UID is no longer derived from our hex address');
 
 ## ----------------------------------------------------------------------------
 ## testing adding children
 ## ----------------------------------------------------------------------------
 
 # create a child
-my $sub_tree = Tree::Simple->new("1.0");
-isa_ok($sub_tree, 'Tree::Simple');
+my $sub_tree = Tree::Indexed::XS->new("1.0");
+isa_ok($sub_tree, 'Tree::Indexed::XS');
 
 # check the node value
 is($sub_tree->getNodeValue(), "1.0", '... this tree is 1.0');
@@ -156,8 +156,8 @@ is($tree, $sub_tree_parent, '... make sure our sub_tree parent is tree');
 ## ----------------------------------------------------------------------------
 
 # create another sub_tree
-my $sub_tree_2 = Tree::Simple->new("2.0");
-isa_ok($sub_tree_2, 'Tree::Simple');
+my $sub_tree_2 = Tree::Indexed::XS->new("2.0");
+isa_ok($sub_tree_2, 'Tree::Indexed::XS');
 
 # check its node value
 is($sub_tree_2->getNodeValue(), "2.0", '... this tree is 2.0');
@@ -206,7 +206,7 @@ is($tree, $sub_tree_2_parent, '... make sure our sub_tree_2 parent is tree');
 
 # we create our new sub_tree and attach it
 # to our root through its constructor
-my $sub_tree_4 = Tree::Simple->new("4.0", $tree);
+my $sub_tree_4 = Tree::Indexed::XS->new("4.0", $tree);
 
 # check its node value
 is($sub_tree_4->getNodeValue(), "4.0", '... this tree is 4.0');
@@ -242,7 +242,7 @@ is($tree, $sub_tree_4->getParent(), '... make sure our sub_tree_4 parent is tree
 ## ----------------------------------------------------------------------------
 
 # we create our new sub_tree
-my $sub_tree_3 = Tree::Simple->new("3.0");
+my $sub_tree_3 = Tree::Indexed::XS->new("3.0");
 
 # check its node value
 is($sub_tree_3->getNodeValue(), "3.0", '... this tree is 3.0');
@@ -323,9 +323,9 @@ foreach my $_sub_tree (@children) {
 ## ----------------------------------------------------------------------------
 
 my @sub_children = (
- 			Tree::Simple->new("1.1"),
-			Tree::Simple->new("1.5"),
-			Tree::Simple->new("1.6")
+ 			Tree::Indexed::XS->new("1.1"),
+			Tree::Indexed::XS->new("1.5"),
+			Tree::Indexed::XS->new("1.6")
 			);
 
 # now go through the children and test them
@@ -383,9 +383,9 @@ foreach my $sub_child (@sub_children) {
 ## ----------------------------------------------------------------------------
 
 my @more_sub_children = (
- 			Tree::Simple->new("1.2"),
-			Tree::Simple->new("1.3"),
-			Tree::Simple->new("1.4")
+ 			Tree::Indexed::XS->new("1.2"),
+			Tree::Indexed::XS->new("1.3"),
+			Tree::Indexed::XS->new("1.4")
 			);
 
 # now go through the children and test them
@@ -440,8 +440,8 @@ foreach my $sub_child (@more_sub_children) {
 ## ----------------------------------------------------------------------------
 
 my @more_children = (
- 			Tree::Simple->new("5.0"),
-			Tree::Simple->new("9.0")
+ 			Tree::Indexed::XS->new("5.0"),
+			Tree::Indexed::XS->new("9.0")
 			);
 
 # now go through the children and test them
@@ -496,7 +496,7 @@ foreach my $sub_child (@more_children) {
 ## test insertSibling
 ## ----------------------------------------------------------------------------
 
-my $new_sibling = Tree::Simple->new("8.0");
+my $new_sibling = Tree::Indexed::XS->new("8.0");
 
 # they should think they are root
 ok($new_sibling->isRoot());
@@ -547,8 +547,8 @@ ok eq_array([ $tree->getAllChildren() ], [ $new_sibling->getAllSiblings() ]);
 ## ----------------------------------------------------------------------------
 
 my @even_more_children = (
- 			Tree::Simple->new("6.0"),
-			Tree::Simple->new("7.0")
+ 			Tree::Indexed::XS->new("6.0"),
+			Tree::Indexed::XS->new("7.0")
 			);
 
 # now go through the children and test them
@@ -617,13 +617,13 @@ is($tree->getChild($_), $sub_tree->getSibling($_), '... siblings are the same as
 
 # addChildren's return value is actually $self
 # so that method calls can be chained
-my $self_ref_tree_test = Tree::Simple->new("3.1", $sub_tree_3)
+my $self_ref_tree_test = Tree::Indexed::XS->new("3.1", $sub_tree_3)
 								->addChildren(
-									Tree::Simple->new("3.1.1"),
-									Tree::Simple->new("3.1.2")
+									Tree::Indexed::XS->new("3.1.1"),
+									Tree::Indexed::XS->new("3.1.2")
 								);
 # make sure that it true
-isa_ok($self_ref_tree_test, 'Tree::Simple');
+isa_ok($self_ref_tree_test, 'Tree::Indexed::XS');
 
 # it shouldnt be a root
 ok(!$self_ref_tree_test->isRoot());
@@ -666,12 +666,12 @@ foreach my $sub_child ($self_ref_tree_test->getAllChildren()) {
 
 # addChild's return value is actually $self
 # so that method calls can be chained
-my $self_ref_tree_test_2 = Tree::Simple->new("2.1", $sub_tree_2)
+my $self_ref_tree_test_2 = Tree::Indexed::XS->new("2.1", $sub_tree_2)
 								->addChild(
-									Tree::Simple->new("2.1.1")
+									Tree::Indexed::XS->new("2.1.1")
 								);
 # make sure that it true
-isa_ok($self_ref_tree_test_2, 'Tree::Simple');
+isa_ok($self_ref_tree_test_2, 'Tree::Indexed::XS');
 
 # it shouldnt be a root
 ok(!$self_ref_tree_test_2->isRoot());
@@ -712,9 +712,9 @@ ok eq_array([ $self_ref_tree_test_2->getAllChildren() ], [ $sub_child->getAllSib
 ## test removeChildAt
 ## ----------------------------------------------------------------------------
 
-my $sub_tree_of_tree_to_remove = Tree::Simple->new("1.1.a.1");
+my $sub_tree_of_tree_to_remove = Tree::Indexed::XS->new("1.1.a.1");
 # make a node to remove
-my $tree_to_remove = Tree::Simple->new("1.1.a")->addChild($sub_tree_of_tree_to_remove);
+my $tree_to_remove = Tree::Indexed::XS->new("1.1.a")->addChild($sub_tree_of_tree_to_remove);
 
 # test that its a root
 ok($tree_to_remove->isRoot());
@@ -756,9 +756,9 @@ cmp_ok($sub_tree_of_tree_to_remove->getDepth(), '==', 0, '... the depth should b
 ## test removeChild
 ## ----------------------------------------------------------------------------
 
-my $sub_tree_of_tree_to_remove2 = Tree::Simple->new("1.1.a.1");
+my $sub_tree_of_tree_to_remove2 = Tree::Indexed::XS->new("1.1.a.1");
 # make a node to remove
-my $tree_to_remove2 = Tree::Simple->new("1.1.a")->addChild($sub_tree_of_tree_to_remove2);
+my $tree_to_remove2 = Tree::Indexed::XS->new("1.1.a")->addChild($sub_tree_of_tree_to_remove2);
 
 # test that its a root
 ok($tree_to_remove2->isRoot());
@@ -801,7 +801,7 @@ cmp_ok($sub_tree_of_tree_to_remove2->getDepth(), '==', 0, '... the depth should 
 ## ----------------------------------------------------------------------------
 
 # make a node to remove
-my $tree_to_remove3 = Tree::Simple->new("1.1.a");
+my $tree_to_remove3 = Tree::Indexed::XS->new("1.1.a");
 
 # test that its a root
 ok($tree_to_remove3->isRoot());
@@ -840,7 +840,7 @@ cmp_ok($tree_to_remove3->getDepth(), '==', -1, '... the depth should be -1');
 # trees at the end
 
 # make a node to remove
-my $tree_to_remove_2 = Tree::Simple->new("1.7");
+my $tree_to_remove_2 = Tree::Indexed::XS->new("1.7");
 
 # add it into the sub_tree
 $sub_tree->addChild($tree_to_remove_2);
@@ -858,7 +858,7 @@ is($removed_tree_2, $tree_to_remove_2, '... these tree should be equal');
 # trees at the beginging
 
 # make a node to remove
-my $tree_to_remove_3 = Tree::Simple->new("1.1.-1");
+my $tree_to_remove_3 = Tree::Indexed::XS->new("1.1.-1");
 
 # add it into the sub_tree
 $sub_tree->insertChild(0, $tree_to_remove_3);
@@ -1073,5 +1073,5 @@ $tree->traverse(sub {
 ok eq_array(\@_all_node_values, \@all_node_values_check);
 
 ## ----------------------------------------------------------------------------
-## end test for Tree::Simple
+## end test for Tree::Indexed::XS
 ## ----------------------------------------------------------------------------

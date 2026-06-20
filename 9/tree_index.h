@@ -36,7 +36,7 @@ int  tree_index_get_next_sibling(tree_index* t, int idx);
 void tree_index_prev_sibling(tree_index* t, int idx, int val);
 int  tree_index_get_prev_sibling(tree_index* t, int idx);
 
-void tree_index_attach_node(tree_index* t, int pid, int idx, int pos);
+void tree_index_attach_child(tree_index* t, int pid, int idx, int pos);
 void tree_index_remove_node(tree_index* t, int idx);
 
 #ifdef __cplusplus

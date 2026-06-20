@@ -9,7 +9,7 @@ use Test::More tests => 48;
 # NOTE:
 # This specifically tests the details of the cloning functions
 ## ----------------------------------------------------------------------------
-require "Tree/Fast.pm";
+use lib "lib/";
 
 #use Tree::Simple;
 

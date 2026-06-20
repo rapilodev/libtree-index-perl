@@ -1,4 +1,4 @@
-package Tree::Indexed;
+package Tree::Indexed::PP;
 use strict;
 use warnings;
 use Scalar::Util qw(blessed);
@@ -12,28 +12,20 @@ use overload
   },
   fallback => 1;
 
-sub _make_accessor {
-    my ($field) = @_;
-    return sub {
-        return $_[0]->{$field}[$_[1]] = $_[2] if @_ == 3;
-        return $_[0]->{$field}[$_[1]];
-    };
-}
-
 my @basic_fields  = qw(parent first_child last_child prev_sibling next_sibling);
 my @custom_fields = qw(uid value);
-my $instanciated  = 0;
+my $instantiated  = 0;
 
 sub set_fields {
-    die "custom fields must be set before init" if $instanciated;
+    die "custom fields must be set before init" if $instantiated;
     @custom_fields = @_;
 }
 
 sub new {
     my ($class) = @_;
-    unless ($instanciated) {
+    unless ($instantiated) {
         no strict 'refs';
-        $instanciated = 1;
+        $instantiated = 1;
         for my $field (@basic_fields, @custom_fields) {
             *{$field} = sub {
                 return $_[0]->{$field}[$_[1]] = $_[2] if @_ == 3;
@@ -45,13 +37,7 @@ sub new {
     my $self = {};
     $self->{$_} = [] for (@basic_fields, @custom_fields);
     $self->{next_index} = 1;
-    return bless $self, $_[0];
-}
-
-sub _garbage_collect {
-    my ($self) = @_;
-    $self->{$_} = [] for (@basic_fields, @custom_fields);
-    $self->{next_index} = 1;
+    return bless $self, $class;
 }
 
 sub is_root {
@@ -95,7 +81,7 @@ sub add_node {
     return $self->{next_index}++;
 }
 
-sub attach_node {
+sub attach_child {
     my ($self, $pid, $idx, $pos) = @_;
 
     $self->remove_node($idx) if defined $self->{parent}[$idx];
@@ -145,14 +131,14 @@ sub attach_node {
 sub insert_at {
     my ($self, $pid, $pos) = @_;
     my $idx = $self->add_node();
-    $self->attach_node($pid, $idx, $pos);
+    $self->attach_child($pid, $idx, $pos);
     return $idx;
 }
 
 sub add_child {
     my ($self, $pid) = @_;
     my $idx = $self->add_node();
-    $self->attach_node($pid, $idx, -1);
+    $self->attach_child($pid, $idx, -1);
     return $idx;
 }
 

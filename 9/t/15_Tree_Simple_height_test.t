@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Test::More tests => 67;
-require "Tree/Fast.pm";
+use lib "lib/";
 
 BEGIN { 
 	use_ok('Tree::Simple'); 

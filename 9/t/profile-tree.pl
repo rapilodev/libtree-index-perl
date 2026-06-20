@@ -9,7 +9,7 @@ use Time::HiRes qw(gettimeofday tv_interval);
 my $has_devel_size = eval { require Devel::Size; Devel::Size->import(qw(total_size)); 1; };
 
 BEGIN {
-    use_ok('Tree::Fast') or BAIL_OUT("Could not load Tree::Fast package");
+    use_ok('Tree::Simple:XS') or BAIL_OUT("Could not load Tree::Simple:XS package");
 }
 
 ## ----------------------------------------------------------------------------
@@ -23,8 +23,8 @@ print "--- INITIATING TRUE LAYERED TREE LOAD TEST ($TARGET_TOTAL_NODES NODES / $
 my $start_time = [gettimeofday];
 
 # 1. Establish the Anchor Root
-my $root = Tree::Fast->new("Root Anchor", Tree::Fast->ROOT);
-isa_ok($root, 'Tree::Fast', "Root node initialization");
+my $root = Tree::Simple:XS->new("Root Anchor", Tree::Simple:XS->ROOT);
+isa_ok($root, 'Tree::Simple:XS', "Root node initialization");
 
 # 2. Fixed Layered Generation Engine
 # Forces a cascading tier topography down to the target max level depth.
@@ -85,10 +85,10 @@ print "\n--- HIGH-VOLUME FLYWEIGHT STORAGE METRICS ---\n";
 
 if ($has_devel_size) {
     no warnings 'once';
-    my $v_size  = total_size(\@Tree::Fast::NODE_VALUES);
-    my $p_size  = total_size(\@Tree::Fast::PARENTS);
-    my $c_size  = total_size(\@Tree::Fast::CHILDREN);
-    my $u_size  = total_size(\@Tree::Fast::UIDS);
+    my $v_size  = total_size(\@Tree::Simple:XS::NODE_VALUES);
+    my $p_size  = total_size(\@Tree::Simple:XS::PARENTS);
+    my $c_size  = total_size(\@Tree::Simple:XS::CHILDREN);
+    my $u_size  = total_size(\@Tree::Simple:XS::UIDS);
     
     my $aggregated_bytes = $v_size + $p_size + $c_size + $u_size;
     my $megabytes        = $aggregated_bytes / 1024 / 1024;
@@ -106,6 +106,6 @@ if ($has_devel_size) {
 }
 print "-----------------------------------------------------------------------\n";
 #use Data::Dumper;
-#print Dumper(\@Tree::Fast::CHILDREN);
+#print Dumper(\@Tree::Simple:XS::CHILDREN);
 
 1;

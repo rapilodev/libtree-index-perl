@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 #use Data::TreeDumper;
-require "Tree/Fast.pm";
+use lib "lib/";
 
 use Test::More;
 #use Tree::Simple;

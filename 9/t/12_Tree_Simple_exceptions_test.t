@@ -5,7 +5,7 @@ use warnings;
 
 use Test::More tests => 52;
 use Test::Exception;
-require "Tree/Fast.pm";
+use lib "lib/";
 
 ## ----------------------------------------------------------------------------
 ## Exception Tests for Tree::Simple

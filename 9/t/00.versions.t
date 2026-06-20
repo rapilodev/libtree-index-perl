@@ -5,7 +5,7 @@ use warnings;
 
 # I tried 'require'-ing modules but that did not work.
 
-use Tree::Fast; # For the version #.
+use Tree::Simple:XS; # For the version #.
 
 use Test::More;
 
@@ -26,7 +26,7 @@ my(@modules) = qw
 	warnings
 /;
 
-diag "Testing Tree::Fast V $Tree::Fast::VERSION";
+diag "Testing Tree::Simple:XS V $Tree::Simple:XS::VERSION";
 
 for my $module (@modules)
 {

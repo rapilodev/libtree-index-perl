@@ -14,17 +14,17 @@ use constant WIDTH => 32;
 my @basic_fields  = qw(parent first_child last_child prev_sibling next_sibling);
 my @fields        = @basic_fields;
 my @custom_fields = qw(uid value);
-my $instanciated  = 0;
+my instantiated  = 0;
 
 sub set_fields {
-    die "custom fields must be set before init" if $instanciated;
+    die "custom fields must be set before init" if instantiated;
     @custom_fields = @_;
 }
 
 sub new {
     my ($class) = @_;
-    unless ($instanciated) {
-        $instanciated = 1;
+    unless (instantiated) {
+        instantiated = 1;
         no strict 'refs';
         for my $field (@basic_fields) {
             *{$field} = sub {
@@ -84,7 +84,7 @@ sub children {
 
 sub add_node {return $_[0]->{next_index}++}
 
-sub attach_node {
+sub attach_child {
     my ($self, $pid, $idx, $pos) = @_;
     $self->remove_node($idx) if defined $self->parent($idx);
 
@@ -132,7 +132,7 @@ sub attach_node {
 sub insert_at {
     my ($self, $pid, $pos) = @_;
     my $idx = $self->add_node();
-    $self->attach_node($pid, $idx, $pos);
+    $self->attach_child($pid, $idx, $pos);
     return $idx;
 }
 
@@ -159,10 +159,4 @@ sub remove_node {
     return $idx;
 }
 
-sub _garbage_collect {
-    my $self = shift;
-    $self->{parent}       = $self->{first_child}  = $self->{last_child} = '';
-    $self->{prev_sibling} = $self->{next_sibling} = '';
-    $self->{next_index}   = 1;
-}
 1;
