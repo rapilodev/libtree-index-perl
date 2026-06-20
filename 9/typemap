@@ -1,5 +1,6 @@
 TYPEMAP
 tree_index * O_TREE_INDEX
+node_store * T_PTROBJ
 
 INPUT
 O_TREE_INDEX
@@ -8,3 +9,12 @@ O_TREE_INDEX
     } else {
         croak(\"Object is not of type Tree::Indexed::XS\");
     }
+
+
+INPUT
+T_PTROBJ
+    $var = INT2PTR($type, SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_PTROBJ
+    sv_setref_pv($arg, "Tree::Indexed::Store", (void*)$var);

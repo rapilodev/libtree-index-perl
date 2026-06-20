@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use lib './lib'; # Points to your Tree/Fast.pm directory
-use Tree::Simple:XS;
+use Tree::Simple;
 
 # 1. Simulated Raw Text Input of a Book Outline
 my @book_lines = (
@@ -23,8 +23,8 @@ my @book_lines = (
 print "--- PARSING BOOK INTO TREE STRUCTURE ---\n\n";
 
 # 2. Initialize the Document Root
-# We use Tree::Simple:XS->ROOT as supported by our updated constructor!
-my $book_tree = Tree::Simple:XS->new("Book Root", Tree::Simple:XS->ROOT);
+# We use Tree::Simple->ROOT as supported by our updated constructor!
+my $book_tree = Tree::Simple->new("Book Root", Tree::Simple->ROOT);
 
 # Track the last active node at each heading depth level to correctly anchor children
 # Depth 0 = Book Root
@@ -37,7 +37,7 @@ for my $line (@book_lines) {
         my $title         = $2;
         
         # Create the new node
-        my $node = Tree::Simple:XS->new($title);
+        my $node = Tree::Simple->new($title);
         
         # The parent of a heading level (e.g., H3) is always the last seen 
         # higher-level heading (e.g., H2), which is heading_level - 1.

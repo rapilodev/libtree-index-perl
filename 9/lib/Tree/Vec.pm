@@ -13,18 +13,18 @@ use constant WIDTH => 32;
 
 my @basic_fields  = qw(parent first_child last_child prev_sibling next_sibling);
 my @fields        = @basic_fields;
-my @custom_fields = qw(uid value);
-my instantiated  = 0;
+my @custom_fields = qw();
+my $instantiated  = 0;
 
 sub set_fields {
-    die "custom fields must be set before init" if instantiated;
+    die "custom fields must be set before init" if $instantiated;
     @custom_fields = @_;
 }
 
 sub new {
     my ($class) = @_;
-    unless (instantiated) {
-        instantiated = 1;
+    unless ($instantiated) {
+        $instantiated = 1;
         no strict 'refs';
         for my $field (@basic_fields) {
             *{$field} = sub {

@@ -5,7 +5,8 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME          => 'Tree::Indexed::XS',
-    PREREQ_PM     => {},
-    OBJECT        => '$(O_FILES)', # Compiles both .c and .xs files
-    AUTHOR        => 'You',
+    VERSION_FROM  => 'lib/Tree/Indexed/XS.pm',
+    # Ensure BOTH C files are included here!
+    OBJECT        => 'XS$(OBJ_EXT) node_store$(OBJ_EXT)',
+    INC           => '-I.', 
 );

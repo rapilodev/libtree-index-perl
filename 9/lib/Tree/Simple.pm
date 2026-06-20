@@ -38,8 +38,14 @@ package Tree::Simple {
         return bless {_tree => $tree, _node => $node}, ref($class) || $class;
     }
 
+    my $instantiated = 0;
     sub new {
         my ($class, $value, $parent) = @_;
+        unless ($instantiated++) {
+           Tree::set_custom_fields(qw(guid value)) ;
+           Tree::Node::set_custom_fields(qw(guid value));
+           Tree::Indexed::PP::set_custom_fields(qw(guid value));
+        }
         my ($tree, $node);
         if (!defined $parent) {
             $tree = Tree->new();

@@ -13,10 +13,10 @@ use overload
   fallback => 1;
 
 my @basic_fields  = qw(parent first_child last_child prev_sibling next_sibling);
-my @custom_fields = qw(uid value);
+my @custom_fields = ();
 my $instantiated  = 0;
 
-sub set_fields {
+sub set_custom_fields {
     die "custom fields must be set before init" if $instantiated;
     @custom_fields = @_;
 }
