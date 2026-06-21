@@ -1,0 +1,8 @@
+zwei Klassen: Tree::Node und Tree (+ Tree::Node::Data)
+Tree::Node::Data speichert rohe Knotendaten als Array
+Tree speichert alle Nodes in einem Array und vergibt IDs
+Tree::Node ist nur Proxy (Tree + ID + Zugriff auf Data)
+echte Baumstruktur liegt im Tree + Data (Parent/Child/Sibling als IDs)
+Nodes werden über Index im Tree-Array verwaltet
+Traversierung arbeitet über IDs + direkte Array-Zugriffe
+klare Trennung: Data (Inhalt) + Tree (Struktur) + Node (Interface)

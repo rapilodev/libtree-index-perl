@@ -1,0 +1,6 @@
+zwei Klassen: Tree::Node und Tree
+Tree speichert alles als binäre Strings mit encoded Links
+Tree::Node ist nur Wrapper (Tree + ID + Value)
+Beziehungen (Parent/Child/Sibling) liegen im Binärspeicher
+Zugriff über Byte-Offsets statt normale Datenstrukturen
+Tree ist Speicher- und Verknüpfungsmanager, Node nur Interface

@@ -1,0 +1,8 @@
+zwei Klassen: Tree::Node und Tree
+Tree::Node speichert nur: Wert, UID, Referenz auf Tree
+Tree verwaltet die komplette Struktur zentral
+alle Nodes werden im Tree über UID-Index gespeichert
+Beziehungen (Parent/Child/Sibling) liegen im Tree, nicht im Node
+Node-Methoden delegieren alle Operationen an Tree
+Navigation (children, parent, depth, traverse) läuft immer über den Tree
+Tree ist der zentrale Speicher + Logik, Node ist nur Datencontainer + Proxy

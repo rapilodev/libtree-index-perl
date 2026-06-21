@@ -1,0 +1,8 @@
+zwei Klassen: Tree::Node und Tree
+Tree::Node speichert alle Links direkt im Objekt (Parent, Children, Siblings, Value, ID)
+Methoden sind Getter/Setter im selben Array-Objekt
+Tree verwaltet nur Registrierung + ID-Vergabe + Node-Liste
+Struktur ist vollständig in den Nodes selbst gespeichert
+Nodes sind gegenseitig verlinkt (kein externes Struktur-Array-System)
+Traversierung läuft über direkte Node-Referenzen, nicht über IDs
+Tree ist nur Verwaltungscontainer, Node ist die eigentliche Datenstruktur + Logik

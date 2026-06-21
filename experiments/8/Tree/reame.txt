@@ -1,0 +1,8 @@
+zwei Klassen: Tree::Node und Tree
+Tree::Node enthält alle Struktur-Links direkt im Objekt (Parent, Children, Siblings, Value, ID)
+Tree ist nur Registry für Nodes + ID-Vergabe + Lookup
+Struktur ist vollständig in den Nodes selbst gespeichert
+Nodes sind über Referenzen miteinander verknüpft (kein externes Struktur-Array-System)
+Traversierung und Navigation laufen direkt über Node-Links
+Tree dient nur als Verwaltungs- und Indexschicht
+Node ist gleichzeitig Datenstruktur und Logikträger
